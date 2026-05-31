@@ -32,7 +32,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
                 "platform[]": "instagram",
                 "async_upload": "true",
             },
-            files={"photo[]": (image_path.name, f, "image/png")}
+            files={"photos[]": (image_path.name, f, "image/png")}
         )
 
     data = response.json()
