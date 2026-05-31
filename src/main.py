@@ -14,6 +14,7 @@ from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
 from post import post_to_instagram, post_carousel_to_instagram
 from sheets import load_history, save_to_history, save_log
+from telegram_approval import send_for_approval, send_carousel_for_approval
 
 
 LOG_DIR = Path("logs")
@@ -77,7 +78,14 @@ def run():
             print("\n[5/4] 🎨 Görsel üretiliyor...")
             image_path = create_post_image(topic)
 
-            print("\n[6/4] 📤 Post atılıyor...")
+            print("\n[6/4] 📱 Telegram onayı bekleniyor...")
+            approved = send_for_approval(image_path, content["caption"], topic, post_type="single")
+            if not approved:
+                print("❌ Post atlanıyor.")
+                save_log("⏭️ atlandı (telegram)", articles=articles, topic=topic)
+                return
+
+            print("\n[7/4] 📤 Post atılıyor...")
             post_id = post_to_instagram(image_path, content["caption"])
             save_to_history(topic, post_id, content["caption"])
             save_log("✅ tek post", articles=articles, topic=topic)
@@ -99,8 +107,15 @@ def run():
             print("\n[5/4] 🎨 Carousel görselleri üretiliyor...")
             image_paths = create_carousel_images(slides)
 
-            print("\n[6/4] 📤 Carousel post atılıyor...")
             carousel_topic = {"konu": "Carousel: AI Haberleri Özeti", "source_name": "Çoklu Kaynak"}
+            print("\n[6/4] 📱 Telegram onayı bekleniyor...")
+            approved = send_carousel_for_approval(image_paths, content["caption"], slides)
+            if not approved:
+                print("❌ Carousel atlanıyor.")
+                save_log("⏭️ atlandı (telegram)", articles=medium, topic=carousel_topic)
+                return
+
+            print("\n[7/4] 📤 Carousel post atılıyor...")
             post_id = post_carousel_to_instagram(image_paths, content["caption"])
             save_to_history(carousel_topic, post_id, content["caption"])
             save_log("✅ carousel", articles=medium, topic=carousel_topic)
