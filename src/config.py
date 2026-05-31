@@ -9,8 +9,8 @@ UPLOAD_POST_USER = os.getenv("UPLOAD_POST_USER")
 
 LANGUAGE = os.getenv("LANGUAGE", "tr")
 
-GEMINI_TEXT_MODEL = "gemini-2.0-flash"
-GEMINI_IMAGE_MODEL = "gemini-2.0-flash-preview-image-generation"
+GEMINI_TEXT_MODEL = "gemini-1.5-flash"
+GEMINI_IMAGE_MODEL = "gemini-1.5-flash"
 
 RSS_FEEDS = [
     {"name": "Anthropic Blog",  "url": "https://www.anthropic.com/rss.xml",                                 "priority": 1},
