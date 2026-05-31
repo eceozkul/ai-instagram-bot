@@ -20,6 +20,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     if not UPLOAD_POST_API_KEY or not UPLOAD_POST_USER:
         raise ValueError("UPLOAD_POST_API_KEY veya UPLOAD_POST_USER eksik.")
 
+    print(f"  Görsel yolu: {image_path} | Mevcut: {Path(image_path).exists()}")
     with open(image_path, "rb") as f:
         response = requests.post(
             API_URL,
