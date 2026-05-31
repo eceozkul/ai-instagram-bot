@@ -57,10 +57,11 @@ Haberler:
 {titles}
 
 {lang} dilinde carousel caption yaz:
-- İlk satır: "🔄 Son [X] saatin AI haberleri:" gibi bir giriş
+- İlk satır: "🔄 Son dakika AI haberleri:" şeklinde başla, süre yazma
 - Her haber için 1 satır emoji + kısa özet
 - Son satır: "Kaydet, kaçırma! 🔖"
 - Max 150 kelime
+- Kesinlikle ** veya * gibi markdown işareti kullanma, düz metin yaz
 
 Sadece caption metnini yaz."""
 

@@ -227,7 +227,7 @@ GORSEL_PROMPT: İngilizce futuristik dark neon görsel tarifi"""
                 next_positions = [raw.index(f"{f}:") for f in next_fields
                                   if f"{f}:" in raw and raw.index(f"{f}:") > start]
                 end = min(next_positions) if next_positions else len(raw)
-                slide[field.lower()] = raw[start:end].strip()
+                slide[field.lower()] = raw[start:end].strip().replace("**", "").replace("*", "").strip()
 
         enriched.append(slide)
     return enriched
