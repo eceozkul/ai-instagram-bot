@@ -108,6 +108,17 @@ def add_text_overlay(image_path: Path, topic: dict) -> Path:
     # Hesap adı
     draw.text((w - 220, h - 50), "@ai.daily.tr", font=font_sub, fill=(80, 80, 80))
 
+    # Logo — varsa sağ üste ekle
+    logo_path = Path(__file__).parent / "logo.png"
+    if logo_path.exists():
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            logo_size = 90
+            logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+            image.paste(logo, (w - logo_size - 30, 30), logo)
+        except Exception as e:
+            print(f"⚠️  Logo eklenemedi: {e}")
+
     final_path = OUTPUT_DIR / "post_final.png"
     image.save(final_path, "PNG", quality=95)
     print(f"✓ Final görsel hazır: {final_path}")
@@ -168,6 +179,17 @@ def create_carousel_images(slides: list[dict]) -> list[Path]:
 
         # Slayt numarası
         draw.text((w - 80, 30), f"{i+1}/{len(slides)}", font=font_sub, fill=(0, 220, 255))
+
+        # Logo
+        logo_path = Path(__file__).parent / "logo.png"
+        if logo_path.exists():
+            try:
+                logo = Image.open(logo_path).convert("RGBA")
+                logo_size = 70
+                logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+                image.paste(logo, (30, 30), logo)
+            except Exception as e:
+                print(f"⚠️  Logo eklenemedi: {e}")
 
         slide_path = OUTPUT_DIR / f"carousel_{i+1}.png"
         image.save(slide_path, "PNG", quality=95)
