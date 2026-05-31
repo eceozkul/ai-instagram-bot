@@ -42,8 +42,8 @@ def send_for_approval(image_path: Path, caption: str, topic: dict, post_type: st
         print("⚠️  Telegram görseli gönderilemedi, otomatik onaylanıyor.")
         return True, {}
 
-    print(f"📱 Telegram'a gönderildi. Onay bekleniyor (max 30 dk)...")
-    return _wait_for_callback(message_id, timeout=1800)
+    print(f"📱 Telegram'a gönderildi. Onay bekleniyor (max 1 saat)...")
+    return _wait_for_callback(message_id, timeout=3600)
 
 
 def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: list[dict]) -> tuple[bool, dict]:
@@ -70,8 +70,8 @@ def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: li
     if not message_id:
         return True, {}
 
-    print(f"📱 Carousel ({len(image_paths)} slayt) Telegram'a gönderildi. Onay bekleniyor (max 30 dk)...")
-    return _wait_for_callback(message_id, timeout=1800)
+    print(f"📱 Carousel ({len(image_paths)} slayt) Telegram'a gönderildi. Onay bekleniyor (max 1 saat)...")
+    return _wait_for_callback(message_id, timeout=3600)
 
 
 def _send_message(text: str):
@@ -157,7 +157,7 @@ def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict
                 elif data == "skip":
                     _send_message("❌ Atlandı.")
                     print("❌ Telegram'dan atla komutu geldi.")
-                    return False, {}
+                    return True, {}
 
                 elif data == "revise":
                     _send_message(
@@ -171,9 +171,9 @@ def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict
                     revize = _wait_for_revise_message(offset, deadline)
                     return False, revize
 
-    _send_message("⏰ 30 dakika içinde yanıt gelmedi, post atlanıyor.")
-    print("⏰ Telegram onayı zaman aşımına uğradı.")
-    return False, {}
+    _send_message("⏰ 1 saat içinde yanıt gelmedi, otomatik onaylanıyor.")
+    print("⏰ Telegram timeout — otomatik onaylandı.")
+    return True, {}
 
 
 def _wait_for_revise_message(offset, deadline) -> dict:
