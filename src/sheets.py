@@ -38,36 +38,56 @@ def get_spreadsheet():
     return client.open_by_key(GOOGLE_SHEET_ID)
 
 
-def get_bot_status() -> str:
-    """Sayfa2'den bot_status okur. 'active' veya 'paused' döner."""
+SETTINGS_SHEET = "Ayarlar"
+
+
+def _get_settings_sheet():
+    """Ayarlar sayfasını döner, yoksa oluşturur."""
+    sh = get_spreadsheet()
     try:
-        sh = get_spreadsheet()
-        ws = sh.worksheet("Sayfa2")
-        records = ws.get_all_values()
-        for row in records:
-            if len(row) >= 2 and row[0].strip().lower() == "bot_status":
-                return row[1].strip().lower()
+        return sh.worksheet(SETTINGS_SHEET)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=SETTINGS_SHEET, rows=50, cols=3)
+        ws.append_row(["key", "value", "açıklama"])
+        ws.append_row(["bot_status", "active", "active veya paused"])
+        print("✓ Ayarlar sayfası oluşturuldu.")
+        return ws
+
+
+def get_setting(key: str, default: str = "") -> str:
+    """Ayarlar sayfasından bir değer okur."""
+    try:
+        ws = _get_settings_sheet()
+        for row in ws.get_all_values()[1:]:
+            if len(row) >= 2 and row[0].strip().lower() == key.lower():
+                return row[1].strip()
     except Exception as e:
-        print(f"⚠️  Bot status okunamadı: {e}")
-    return "active"
+        print(f"⚠️  Ayar okunamadı ({key}): {e}")
+    return default
+
+
+def set_setting(key: str, value: str):
+    """Ayarlar sayfasındaki bir değeri günceller, yoksa ekler."""
+    try:
+        ws = _get_settings_sheet()
+        rows = ws.get_all_values()
+        for i, row in enumerate(rows):
+            if len(row) >= 1 and row[0].strip().lower() == key.lower():
+                ws.update_cell(i + 1, 2, value)
+                print(f"✓ Ayar güncellendi: {key} → {value}")
+                return
+        ws.append_row([key, value, ""])
+        print(f"✓ Ayar eklendi: {key} → {value}")
+    except Exception as e:
+        print(f"⚠️  Ayar yazılamadı ({key}): {e}")
+
+
+def get_bot_status() -> str:
+    return get_setting("bot_status", "active")
 
 
 def set_bot_status(status: str):
-    """Sayfa2'deki bot_status değerini günceller."""
-    try:
-        sh = get_spreadsheet()
-        ws = sh.worksheet("Sayfa2")
-        records = ws.get_all_values()
-        for i, row in enumerate(records):
-            if len(row) >= 1 and row[0].strip().lower() == "bot_status":
-                ws.update_cell(i + 1, 2, status)
-                print(f"✓ Bot status → {status}")
-                return
-        # Yoksa ekle
-        ws.append_row(["bot_status", status])
-        print(f"✓ Bot status eklendi → {status}")
-    except Exception as e:
-        print(f"⚠️  Bot status yazılamadı: {e}")
+    set_setting("bot_status", status)
 
 
 def load_history() -> list[dict]:
