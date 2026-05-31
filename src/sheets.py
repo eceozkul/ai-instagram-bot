@@ -6,7 +6,7 @@ Google Sheets entegrasyonu
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
 from config import GOOGLE_SHEET_ID
@@ -50,8 +50,20 @@ def load_history() -> list[dict]:
             return []
 
         records = ws.get_all_records()
-        print(f"📚 Geçmişte {len(records)} post bulundu.")
-        return records
+
+        # Son 15 günü filtrele
+        cutoff = datetime.now() - timedelta(days=15)
+        recent = []
+        for r in records:
+            try:
+                date = datetime.strptime(r.get("date", "")[:16], "%Y-%m-%d %H:%M")
+                if date >= cutoff:
+                    recent.append(r)
+            except:
+                pass
+
+        print(f"📚 Geçmişte {len(recent)} post bulundu (son 15 gün).")
+        return recent
     except Exception as e:
         print(f"⚠️  Geçmiş okunamadı: {e}")
         return []
