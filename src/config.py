@@ -9,6 +9,8 @@ UPLOAD_POST_USER = os.getenv("UPLOAD_POST_USER")
 
 LANGUAGE = os.getenv("LANGUAGE", "tr")
 
+GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1_pUUpZLwqsDSIQhIVNdrZhgzX3f3gUxPdSdL00sNjyw")
+
 GEMINI_TEXT_MODEL = "gemini-2.5-flash"
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 

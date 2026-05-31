@@ -3,17 +3,43 @@ Modül 1: Haber Araştırma
 RSS feedlerini tarar, Gemini ile günün en iyi konusunu seçer.
 """
 
+import csv
+import io
 import feedparser
+import requests
 from google import genai
 from datetime import datetime, timedelta
-from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, RSS_FEEDS, LANGUAGE
+from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, RSS_FEEDS, LANGUAGE, GOOGLE_SHEET_ID
+
+
+def load_feeds_from_sheet() -> list[dict]:
+    """Google Sheet'ten RSS feed listesini çeker."""
+    url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/export?format=csv"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        reader = csv.DictReader(io.StringIO(response.text))
+        feeds = []
+        for row in reader:
+            name = row.get("name", "").strip()
+            url_ = row.get("url", "").strip()
+            priority = row.get("priority", "2").strip()
+            if name and url_:
+                feeds.append({"name": name, "url": url_, "priority": int(priority or 2)})
+        if feeds:
+            print(f"📋 Google Sheet'ten {len(feeds)} feed yüklendi.")
+            return feeds
+    except Exception as e:
+        print(f"⚠️  Google Sheet okunamadı, varsayılan liste kullanılıyor: {e}")
+    return RSS_FEEDS
 
 
 def fetch_rss_feeds() -> list[dict]:
     """RSS feedlerini çeker, tarih filtresi olmadan tüm haberleri döndürür."""
     articles = []
+    feeds = load_feeds_from_sheet()
 
-    for feed_config in RSS_FEEDS:
+    for feed_config in feeds:
         try:
             feed = feedparser.parse(feed_config["url"])
             count = 0
