@@ -19,6 +19,9 @@ SCOPES = [
 HISTORY_SHEET = "Geçmiş"
 HISTORY_HEADERS = ["date", "topic", "source", "post_id", "caption"]
 
+LOG_SHEET = "Log"
+LOG_HEADERS = ["date", "status", "articles_found", "selected_topic", "source", "link", "notes"]
+
 
 def get_client():
     """Google Sheets istemcisi oluşturur."""
@@ -52,6 +55,46 @@ def load_history() -> list[dict]:
     except Exception as e:
         print(f"⚠️  Geçmiş okunamadı: {e}")
         return []
+
+
+def save_log(status: str, articles: list[dict] = [], topic: dict = {}, notes: str = ""):
+    """Her çalışmayı Log sayfasına yazar."""
+    try:
+        sh = get_spreadsheet()
+        try:
+            ws = sh.worksheet(LOG_SHEET)
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title=LOG_SHEET, rows=5000, cols=len(LOG_HEADERS))
+            ws.append_row(LOG_HEADERS)
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        if not articles and not topic:
+            # Haber bulunamadı
+            ws.append_row([now, status, 0, "", "", "", notes])
+            print(f"📋 Log kaydedildi: {status}")
+            return
+
+        # Bulunan her haber için ayrı satır
+        selected_title = topic.get("konu", "")
+        selected_source = topic.get("source_name", "")
+
+        for i, article in enumerate(articles):
+            is_selected = article.get("title", "")[:30] in selected_title or article.get("source", "") == selected_source
+            row_status = "✅ seçildi" if (is_selected and i == 0) else status
+            ws.append_row([
+                now if i == 0 else "",
+                row_status if i == 0 else "",
+                len(articles) if i == 0 else "",
+                selected_title if i == 0 else "",
+                article.get("source", ""),
+                article.get("link", ""),
+                article.get("title", "")
+            ])
+
+        print(f"📋 Log kaydedildi: {len(articles)} haber.")
+    except Exception as e:
+        print(f"⚠️  Log yazılamadı: {e}")
 
 
 def save_to_history(topic: dict, post_id: str, caption: str):

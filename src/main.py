@@ -13,7 +13,7 @@ from research import fetch_rss_feeds, select_best_topic
 from content import generate_caption
 from image import create_post_image
 from post import post_to_instagram
-from sheets import load_history, save_to_history
+from sheets import load_history, save_to_history, save_log
 
 
 LOG_DIR = Path("logs")
@@ -43,6 +43,7 @@ def run():
         if not articles:
             print("\n⏭️  Son 4 saatte yeni haber yok, atlanıyor.")
             log_run("skipped", {"reason": "Son 4 saatte yeni haber bulunamadı."})
+            save_log("⏭️ haber yok", notes="Son 4 saatte yeni haber bulunamadı.")
             return
 
         print("\n[2/4] 🧠 Geçmiş yükleniyor ve konu seçiliyor...")
@@ -58,6 +59,7 @@ def run():
         print("\n[5/4] 📤 Post atılıyor...")
         post_id = post_to_instagram(image_path, content["caption"])
         save_to_history(topic, post_id, content["caption"])
+        save_log("✅ post edildi", articles=articles, topic=topic)
 
         log_run("success", {
             "topic": topic.get("konu"),
@@ -72,6 +74,7 @@ def run():
         print(f"\n❌ Hata: {e}")
         print(error_msg)
         log_run("error", {"error": str(e), "traceback": error_msg})
+        save_log("❌ hata", notes=str(e))
         sys.exit(1)
 
 
