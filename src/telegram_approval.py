@@ -14,6 +14,46 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 
+def check_commands():
+    """
+    Telegram'dan bekleyen /pause veya /resume komutlarını kontrol eder.
+    Sheet'teki bot_status'u günceller.
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+
+    try:
+        from sheets import set_bot_status
+        resp = requests.get(f"{BASE_URL}/getUpdates", params={"allowed_updates": ["message"]}, timeout=10)
+        updates = resp.json().get("result", [])
+        last_offset = None
+
+        for update in updates:
+            last_offset = update["update_id"] + 1
+            msg = update.get("message", {})
+            text = msg.get("text", "").strip().lower()
+
+            if text == "/pause":
+                set_bot_status("paused")
+                _send_message("⏸️ Bot duraklatıldı. Devam ettirmek için /resume yaz.")
+                print("⏸️ Bot pause edildi.")
+            elif text == "/resume":
+                set_bot_status("active")
+                _send_message("▶️ Bot yeniden aktif!")
+                print("▶️ Bot resume edildi.")
+            elif text == "/status":
+                from sheets import get_bot_status
+                status = get_bot_status()
+                _send_message(f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}")
+
+        # Okundu olarak işaretle
+        if last_offset:
+            requests.get(f"{BASE_URL}/getUpdates", params={"offset": last_offset}, timeout=5)
+
+    except Exception as e:
+        print(f"⚠️  Komut kontrolü hatası: {e}")
+
+
 def send_for_approval(image_path: Path, caption: str, topic: dict, post_type: str = "single") -> tuple[bool, dict]:
     """
     Görseli ve caption'ı Telegram'a gönderir.

@@ -14,8 +14,8 @@ import token_tracker
 from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
 from post import post_to_instagram, post_carousel_to_instagram
-from sheets import load_history, save_to_history, save_log
-from telegram_approval import send_for_approval, send_carousel_for_approval
+from sheets import load_history, save_to_history, save_log, get_bot_status
+from telegram_approval import send_for_approval, send_carousel_for_approval, check_commands
 
 
 LOG_DIR = Path("logs")
@@ -42,6 +42,15 @@ def run():
     token_tracker.reset()
 
     try:
+        # Telegram komutlarını kontrol et (/pause, /resume, /status)
+        check_commands()
+
+        # Bot durumunu kontrol et
+        status = get_bot_status()
+        if status == "paused":
+            print("\n⏸️  Bot duraklatılmış, atlanıyor.")
+            return
+
         # 1. Haber Toplama
         print("\n[1/4] 📡 Haberler taranıyor...")
         articles = fetch_rss_feeds()

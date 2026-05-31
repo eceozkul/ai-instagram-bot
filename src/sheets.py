@@ -38,6 +38,38 @@ def get_spreadsheet():
     return client.open_by_key(GOOGLE_SHEET_ID)
 
 
+def get_bot_status() -> str:
+    """Sayfa2'den bot_status okur. 'active' veya 'paused' döner."""
+    try:
+        sh = get_spreadsheet()
+        ws = sh.worksheet("Sayfa2")
+        records = ws.get_all_values()
+        for row in records:
+            if len(row) >= 2 and row[0].strip().lower() == "bot_status":
+                return row[1].strip().lower()
+    except Exception as e:
+        print(f"⚠️  Bot status okunamadı: {e}")
+    return "active"
+
+
+def set_bot_status(status: str):
+    """Sayfa2'deki bot_status değerini günceller."""
+    try:
+        sh = get_spreadsheet()
+        ws = sh.worksheet("Sayfa2")
+        records = ws.get_all_values()
+        for i, row in enumerate(records):
+            if len(row) >= 1 and row[0].strip().lower() == "bot_status":
+                ws.update_cell(i + 1, 2, status)
+                print(f"✓ Bot status → {status}")
+                return
+        # Yoksa ekle
+        ws.append_row(["bot_status", status])
+        print(f"✓ Bot status eklendi → {status}")
+    except Exception as e:
+        print(f"⚠️  Bot status yazılamadı: {e}")
+
+
 def load_history() -> list[dict]:
     """Geçmiş sayfasındaki post edilmiş konuları döndürür."""
     try:
