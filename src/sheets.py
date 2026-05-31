@@ -17,7 +17,7 @@ SCOPES = [
 ]
 
 HISTORY_SHEET = "Geçmiş"
-HISTORY_HEADERS = ["date", "topic", "source", "post_id", "caption"]
+HISTORY_HEADERS = ["date", "topic", "post_type", "post_id", "source", "source_link", "caption"]
 
 LOG_SHEET = "Log"
 LOG_HEADERS = ["date", "status", "post_type", "telegram", "articles_found", "selected_topic", "score", "source", "link", "title", "notes"]
@@ -98,8 +98,8 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
         print(f"⚠️  Log yazılamadı: {e}")
 
 
-def save_to_history(topic: dict, post_id: str, caption: str):
-    """Post edilen konuyu geçmiş sayfasına yazar."""
+def save_to_history(topic: dict, post_id: str, caption: str, post_type: str = "tek post", articles: list[dict] = []):
+    """Post edilen konuyu geçmiş sayfasına yazar. Birden fazla kaynak varsa ayrı satır."""
     try:
         sh = get_spreadsheet()
         try:
@@ -108,14 +108,28 @@ def save_to_history(topic: dict, post_id: str, caption: str):
             ws = sh.add_worksheet(title=HISTORY_SHEET, rows=1000, cols=len(HISTORY_HEADERS))
             ws.append_row(HISTORY_HEADERS)
 
-        row = [
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
-            topic.get("konu", ""),
-            topic.get("source_name", ""),
-            post_id,
-            caption[:200]
-        ]
-        ws.append_row(row)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        konu = topic.get("konu", "")
+
+        if articles:
+            for i, article in enumerate(articles):
+                ws.append_row([
+                    now if i == 0 else "",
+                    konu if i == 0 else "",
+                    post_type if i == 0 else "",
+                    post_id if i == 0 else "",
+                    article.get("source", ""),
+                    article.get("link", ""),
+                    caption[:200] if i == 0 else ""
+                ])
+        else:
+            ws.append_row([
+                now, konu, post_type, post_id,
+                topic.get("source_name", ""),
+                topic.get("source_link", ""),
+                caption[:200]
+            ])
+
         print(f"✓ Geçmişe kaydedildi.")
     except Exception as e:
         print(f"⚠️  Geçmişe yazılamadı: {e}")

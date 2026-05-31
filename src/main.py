@@ -87,7 +87,7 @@ def run():
 
             print("\n[7/4] 📤 Post atılıyor...")
             post_id = post_to_instagram(image_path, content["caption"])
-            save_to_history(topic, post_id, content["caption"])
+            save_to_history(topic, post_id, content["caption"], post_type="tek post", articles=[high[0]])
             save_log("✅ post edildi", articles=articles, topic=topic, post_type="tek post", telegram="✅ onaylandı")
 
             log_run("success", {
@@ -117,7 +117,7 @@ def run():
 
             print("\n[7/4] 📤 Carousel post atılıyor...")
             post_id = post_carousel_to_instagram(image_paths, content["caption"])
-            save_to_history(carousel_topic, post_id, content["caption"])
+            save_to_history(carousel_topic, post_id, content["caption"], post_type="carousel", articles=medium)
             save_log("✅ post edildi", articles=medium, topic=carousel_topic, post_type="carousel", telegram="✅ onaylandı")
 
             log_run("success", {
