@@ -25,30 +25,28 @@ def build_image_prompt(topic: dict) -> str:
 
 
 def generate_image(topic: dict) -> Path:
-    """Gemini 2.0 Flash ile görsel üret."""
+    """Imagen 3 ile görsel üret."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = build_image_prompt(topic)
 
     print(f"🎨 Görsel üretiliyor...")
 
-    response = client.models.generate_content(
+    response = client.models.generate_images(
         model=GEMINI_IMAGE_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"]
+        prompt=prompt,
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio="1:1",
         )
     )
 
-    for part in response.candidates[0].content.parts:
-        if part.inline_data is not None:
-            image = Image.open(io.BytesIO(part.inline_data.data))
-            image = crop_to_square(image)
-            raw_path = OUTPUT_DIR / "post_raw.png"
-            image.save(raw_path, "PNG")
-            print(f"✓ Ham görsel kaydedildi")
-            return raw_path
-
-    raise ValueError("Gemini görsel üretemedi.")
+    image = response.generated_images[0].image
+    img = Image.open(io.BytesIO(image.image_bytes))
+    img = crop_to_square(img)
+    raw_path = OUTPUT_DIR / "post_raw.png"
+    img.save(raw_path, "PNG")
+    print(f"✓ Ham görsel kaydedildi")
+    return raw_path
 
 
 def crop_to_square(image: Image.Image) -> Image.Image:
