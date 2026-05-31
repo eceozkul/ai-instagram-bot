@@ -79,11 +79,23 @@ def run():
             image_path = create_post_image(topic)
 
             print("\n[6/4] 📱 Telegram onayı bekleniyor...")
-            approved = send_for_approval(image_path, content["caption"], topic, post_type="single")
-            if not approved:
-                print("❌ Post atlanıyor.")
-                save_log("⏭️ atlandı", articles=articles, topic=topic, post_type="tek post", telegram="❌ atlandı")
-                return
+            while True:
+                approved, revize = send_for_approval(image_path, content["caption"], topic, post_type="single")
+                if approved:
+                    break
+                if not revize:
+                    print("❌ Post atlanıyor.")
+                    save_log("⏭️ atlandı", articles=articles, topic=topic, post_type="tek post", telegram="❌ atlandı")
+                    return
+                # Revize
+                print("✏️ Revize ediliyor...")
+                if "caption" in revize:
+                    from content import generate_caption
+                    topic["revize_notu"] = revize["caption"]
+                    content = generate_caption(topic)
+                if "image" in revize:
+                    topic["gorsel_prompt"] = revize["image"]
+                    image_path = create_post_image(topic)
 
             print("\n[7/4] 📤 Post atılıyor...")
             post_id = post_to_instagram(image_path, content["caption"])
@@ -109,11 +121,21 @@ def run():
 
             carousel_topic = {"konu": "Carousel: AI Haberleri Özeti", "source_name": "Çoklu Kaynak"}
             print("\n[6/4] 📱 Telegram onayı bekleniyor...")
-            approved = send_carousel_for_approval(image_paths, content["caption"], slides)
-            if not approved:
-                print("❌ Carousel atlanıyor.")
-                save_log("⏭️ atlandı", articles=medium, topic=carousel_topic, post_type="carousel", telegram="❌ atlandı")
-                return
+            while True:
+                approved, revize = send_carousel_for_approval(image_paths, content["caption"], slides)
+                if approved:
+                    break
+                if not revize:
+                    print("❌ Carousel atlanıyor.")
+                    save_log("⏭️ atlandı", articles=medium, topic=carousel_topic, post_type="carousel", telegram="❌ atlandı")
+                    return
+                # Revize
+                print("✏️ Carousel revize ediliyor...")
+                if "caption" in revize:
+                    carousel_topic["revize_notu"] = revize["caption"]
+                    content = generate_carousel_caption(slides)
+                if "image" in revize:
+                    image_paths = create_carousel_images(slides)
 
             print("\n[7/4] 📤 Carousel post atılıyor...")
             post_id = post_carousel_to_instagram(image_paths, content["caption"])

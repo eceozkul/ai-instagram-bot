@@ -12,12 +12,14 @@ def generate_caption(topic: dict) -> dict:
 
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
 
+    revize = f"\n\nRevize talebi: {topic['revize_notu']}" if topic.get("revize_notu") else ""
+
     prompt = f"""Sen bir AI teknoloji Instagram hesabının içerik yazarısın.
 Stil: Minimal, futuristik, etkileyici. Karmaşık konuları herkesin anlayacağı şekilde anlatırsın.
 
 Konu: {topic.get('konu', '')}
 Neden Önemli: {topic.get('neden_önemli', '')}
-Açılış (bunu kullan): {topic.get('ana_mesaj', '')}
+Açılış (bunu kullan): {topic.get('ana_mesaj', '')}{revize}
 
 {lang} dilinde Instagram caption yaz:
 - İlk satır: verilen açılış cümlesini kullan

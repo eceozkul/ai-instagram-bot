@@ -1,6 +1,6 @@
 """
 Telegram Onay Modülü
-Hazırlanan içeriği Telegram'a gönderir, onay bekler.
+Hazırlanan içeriği Telegram'a gönderir, onay/red/revize bekler.
 """
 
 import os
@@ -14,15 +14,15 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 
-def send_for_approval(image_path: Path, caption: str, topic: dict, post_type: str = "single") -> bool:
+def send_for_approval(image_path: Path, caption: str, topic: dict, post_type: str = "single") -> tuple[bool, dict]:
     """
     Görseli ve caption'ı Telegram'a gönderir.
-    Kullanıcı 'Onayla' basarsa True, 'Atla' basarsa False döner.
-    30 dakika içinde yanıt gelmezse False döner.
+    Döner: (onaylandı_mı, revize_talimatları)
+    revize_talimatları = {"caption": "...", "image": "..."} veya {}
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️  Telegram ayarları eksik, otomatik onaylanıyor.")
-        return True
+        return True, {}
 
     type_label = "🔴 TEK POST" if post_type == "single" else "🟡 CAROUSEL"
     score = topic.get("score", "?")
@@ -33,43 +33,44 @@ def send_for_approval(image_path: Path, caption: str, topic: dict, post_type: st
         f"{type_label} | Puan: {score}/10\n\n"
         f"📰 {konu}\n"
         f"📌 Kaynak: {source}\n\n"
-        f"Caption önizleme:\n{caption[:300]}..."
+        f"Caption:\n{caption[:400]}"
     )
-
-    # Önce bilgi mesajı gönder
     _send_message(info_text)
 
-    # Sonra görseli onayla/atla butonlarıyla gönder
     message_id = _send_photo_with_buttons(image_path)
     if not message_id:
         print("⚠️  Telegram görseli gönderilemedi, otomatik onaylanıyor.")
-        return True
+        return True, {}
 
     print(f"📱 Telegram'a gönderildi. Onay bekleniyor (max 30 dk)...")
-
-    # Callback bekle
     return _wait_for_callback(message_id, timeout=1800)
 
 
-def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: list[dict]) -> bool:
-    """Carousel için ilk görseli preview olarak gönderir."""
+def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: list[dict]) -> tuple[bool, dict]:
+    """Carousel için tüm slaytları gönderir, son slayta onay butonu ekler."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️  Telegram ayarları eksik, otomatik onaylanıyor.")
-        return True
+        return True, {}
 
     titles = "\n".join([f"• {s.get('baslik', '')}" for s in slides])
     info_text = (
         f"🟡 CAROUSEL | {len(slides)} slayt\n\n"
         f"Haberler:\n{titles}\n\n"
-        f"Caption önizleme:\n{caption[:300]}..."
+        f"Caption:\n{caption[:400]}"
     )
-
     _send_message(info_text)
-    message_id = _send_photo_with_buttons(image_paths[0])
-    if not message_id:
-        return True
 
-    print(f"📱 Carousel Telegram'a gönderildi. Onay bekleniyor (max 30 dk)...")
+    message_id = None
+    for i, path in enumerate(image_paths):
+        if i == len(image_paths) - 1:
+            message_id = _send_photo_with_buttons(path)
+        else:
+            _send_photo(path)
+
+    if not message_id:
+        return True, {}
+
+    print(f"📱 Carousel ({len(image_paths)} slayt) Telegram'a gönderildi. Onay bekleniyor (max 30 dk)...")
     return _wait_for_callback(message_id, timeout=1800)
 
 
@@ -81,20 +82,32 @@ def _send_message(text: str):
     })
 
 
+def _send_photo(image_path: Path):
+    """Görseli butonsuz gönderir."""
+    with open(image_path, "rb") as f:
+        requests.post(
+            f"{BASE_URL}/sendPhoto",
+            data={"chat_id": TELEGRAM_CHAT_ID},
+            files={"photo": f}
+        )
+
+
 def _send_photo_with_buttons(image_path: Path) -> int | None:
     """Görseli inline butonlarla gönderir, message_id döner."""
-    keyboard = {
+    import json
+    keyboard = json.dumps({
         "inline_keyboard": [[
-            {"text": "✅ Onayla", "callback_data": "approve"},
-            {"text": "❌ Atla",   "callback_data": "skip"}
+            {"text": "✅ Onayla",     "callback_data": "approve"},
+            {"text": "✏️ Revize Et", "callback_data": "revise"},
+            {"text": "❌ Atla",       "callback_data": "skip"}
         ]]
-    }
+    })
     with open(image_path, "rb") as f:
         response = requests.post(
             f"{BASE_URL}/sendPhoto",
             data={
                 "chat_id": TELEGRAM_CHAT_ID,
-                "reply_markup": str(keyboard).replace("'", '"')
+                "reply_markup": keyboard
             },
             files={"photo": f}
         )
@@ -105,14 +118,17 @@ def _send_photo_with_buttons(image_path: Path) -> int | None:
     return None
 
 
-def _wait_for_callback(message_id: int, timeout: int = 1800) -> bool:
-    """Telegram callback'i polling ile bekler."""
+def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict]:
+    """
+    Telegram callback'i polling ile bekler.
+    Döner: (onaylandı_mı, revize_talimatları)
+    """
     offset = None
     deadline = time.time() + timeout
     poll_interval = 5
 
     while time.time() < deadline:
-        params = {"timeout": poll_interval, "allowed_updates": ["callback_query"]}
+        params = {"timeout": poll_interval, "allowed_updates": ["callback_query", "message"]}
         if offset:
             params["offset"] = offset
 
@@ -126,26 +142,70 @@ def _wait_for_callback(message_id: int, timeout: int = 1800) -> bool:
 
         for update in updates:
             offset = update["update_id"] + 1
+
+            # Callback (buton)
             cb = update.get("callback_query")
-            if not cb:
-                continue
+            if cb:
+                requests.post(f"{BASE_URL}/answerCallbackQuery", json={"callback_query_id": cb["id"]})
+                data = cb.get("data")
 
-            # Callback'i onayla
-            requests.post(f"{BASE_URL}/answerCallbackQuery", json={
-                "callback_query_id": cb["id"]
-            })
+                if data == "approve":
+                    _send_message("✅ Onaylandı! Post atılıyor...")
+                    print("✅ Telegram onayı alındı.")
+                    return True, {}
 
-            data = cb.get("data")
-            if data == "approve":
-                _send_message("✅ Onaylandı! Post atılıyor...")
-                print("✅ Telegram onayı alındı.")
-                return True
-            elif data == "skip":
-                _send_message("❌ Atlandı.")
-                print("❌ Telegram'dan atla komutu geldi.")
-                return False
+                elif data == "skip":
+                    _send_message("❌ Atlandı.")
+                    print("❌ Telegram'dan atla komutu geldi.")
+                    return False, {}
 
-    # Timeout
+                elif data == "revise":
+                    _send_message(
+                        "✏️ Neyi revize etmek istiyorsun? Yazarak belirt:\n\n"
+                        "Sadece caption için: <b>caption: isteğin</b>\n"
+                        "Sadece görsel için: <b>görsel: isteğin</b>\n"
+                        "İkisi için: <b>caption: ... görsel: ...</b>"
+                    )
+                    print("✏️ Revize talebi alındı, kullanıcı talimat yazıyor...")
+                    # Kullanıcının mesajını bekle
+                    revize = _wait_for_revise_message(offset, deadline)
+                    return False, revize
+
     _send_message("⏰ 30 dakika içinde yanıt gelmedi, post atlanıyor.")
     print("⏰ Telegram onayı zaman aşımına uğradı.")
-    return False
+    return False, {}
+
+
+def _wait_for_revise_message(offset, deadline) -> dict:
+    """Kullanıcının revize talimatını bekler."""
+    poll_interval = 5
+    while time.time() < deadline:
+        params = {"timeout": poll_interval, "allowed_updates": ["message"], "offset": offset}
+        try:
+            resp = requests.get(f"{BASE_URL}/getUpdates", params=params, timeout=poll_interval + 5)
+            updates = resp.json().get("result", [])
+        except:
+            time.sleep(5)
+            continue
+
+        for update in updates:
+            msg = update.get("message", {})
+            text = msg.get("text", "").strip()
+            if text:
+                revize = {}
+                text_lower = text.lower()
+                if "caption:" in text_lower:
+                    idx = text_lower.index("caption:") + len("caption:")
+                    end = text_lower.index("görsel:") if "görsel:" in text_lower else len(text)
+                    revize["caption"] = text[idx:end].strip()
+                if "görsel:" in text_lower:
+                    idx = text_lower.index("görsel:") + len("görsel:")
+                    revize["image"] = text[idx:].strip()
+                if not revize:
+                    revize["caption"] = text  # varsayılan olarak caption
+
+                _send_message(f"✏️ Revize talebi alındı:\n{text}\n\nYeniden hazırlanıyor...")
+                print(f"✏️ Revize talimatı: {revize}")
+                return revize
+
+    return {}
