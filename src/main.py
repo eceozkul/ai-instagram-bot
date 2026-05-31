@@ -13,6 +13,7 @@ from research import fetch_rss_feeds, select_best_topic
 from content import generate_caption
 from image import create_post_image
 from post import post_to_instagram
+from sheets import load_history, save_to_history
 
 
 LOG_DIR = Path("logs")
@@ -42,8 +43,9 @@ def run():
         if not articles:
             raise ValueError("Hiç haber bulunamadı.")
 
-        print("\n[2/4] 🧠 Konu seçiliyor...")
-        topic = select_best_topic(articles)
+        print("\n[2/4] 🧠 Geçmiş yükleniyor ve konu seçiliyor...")
+        history = load_history()
+        topic = select_best_topic(articles, history)
 
         print("\n[3/4] ✍️  Caption yazılıyor...")
         content = generate_caption(topic)
@@ -53,6 +55,7 @@ def run():
 
         print("\n[5/4] 📤 Post atılıyor...")
         post_id = post_to_instagram(image_path, content["caption"])
+        save_to_history(topic, post_id, content["caption"])
 
         log_run("success", {
             "topic": topic.get("konu"),

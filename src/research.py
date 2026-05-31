@@ -69,8 +69,8 @@ def fetch_rss_feeds() -> list[dict]:
     return articles
 
 
-def select_best_topic(articles: list[dict]) -> dict:
-    """Gemini ile en iyi konuyu seçer."""
+def select_best_topic(articles: list[dict], history: list[dict] = []) -> dict:
+    """Gemini ile en iyi konuyu seçer, daha önce paylaşılanları atlar."""
     if not articles:
         raise ValueError("Haber bulunamadı.")
 
@@ -81,6 +81,13 @@ def select_best_topic(articles: list[dict]) -> dict:
         for i, a in enumerate(articles[:20])
     ])
 
+    history_text = ""
+    if history:
+        recent = history[-20:]
+        history_text = "\n\nDaha önce paylaşılan konular (bunları seçme):\n" + "\n".join([
+            f"- {h.get('topic', '')}" for h in recent if h.get('topic')
+        ])
+
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
 
     prompt = f"""Aşağıdaki yapay zeka haberlerinden Instagram için en uygun konuyu seç.
@@ -90,6 +97,7 @@ Seçim kriterleri:
 - Güncel ve önemli olmalı
 - Görsel anlatıma uygun olmalı
 - İlgi çekici olmalı
+{history_text}
 
 Haberler:
 {articles_text}
