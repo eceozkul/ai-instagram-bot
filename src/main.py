@@ -64,7 +64,7 @@ def run():
         if not high and not medium:
             print("\n⏭️  Yeterli önemde haber yok, atlanıyor.")
             log_run("skipped", {"reason": "Tüm haberler 7 puan altında."})
-            save_log("⏭️ düşük puan", articles=articles, notes="Hiçbir haber yayın eşiğini geçemedi.")
+            save_log("⏭️ düşük puan", articles=articles, notes="Hiçbir haber yayın eşiğini geçemedi.", post_type="-", telegram="-")
             return
 
         # 3. İçerik + Görsel + Post
@@ -82,13 +82,13 @@ def run():
             approved = send_for_approval(image_path, content["caption"], topic, post_type="single")
             if not approved:
                 print("❌ Post atlanıyor.")
-                save_log("⏭️ atlandı (telegram)", articles=articles, topic=topic)
+                save_log("⏭️ atlandı", articles=articles, topic=topic, post_type="tek post", telegram="❌ atlandı")
                 return
 
             print("\n[7/4] 📤 Post atılıyor...")
             post_id = post_to_instagram(image_path, content["caption"])
             save_to_history(topic, post_id, content["caption"])
-            save_log("✅ tek post", articles=articles, topic=topic)
+            save_log("✅ post edildi", articles=articles, topic=topic, post_type="tek post", telegram="✅ onaylandı")
 
             log_run("success", {
                 "type": "single",
@@ -112,13 +112,13 @@ def run():
             approved = send_carousel_for_approval(image_paths, content["caption"], slides)
             if not approved:
                 print("❌ Carousel atlanıyor.")
-                save_log("⏭️ atlandı (telegram)", articles=medium, topic=carousel_topic)
+                save_log("⏭️ atlandı", articles=medium, topic=carousel_topic, post_type="carousel", telegram="❌ atlandı")
                 return
 
             print("\n[7/4] 📤 Carousel post atılıyor...")
             post_id = post_carousel_to_instagram(image_paths, content["caption"])
             save_to_history(carousel_topic, post_id, content["caption"])
-            save_log("✅ carousel", articles=medium, topic=carousel_topic)
+            save_log("✅ post edildi", articles=medium, topic=carousel_topic, post_type="carousel", telegram="✅ onaylandı")
 
             log_run("success", {
                 "type": "carousel",
