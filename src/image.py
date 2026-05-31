@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
 from config import GEMINI_API_KEY, GEMINI_IMAGE_MODEL, IMAGE_SIZE
+import token_tracker
 
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -39,6 +40,7 @@ def generate_image(topic: dict) -> Path:
         )
     )
 
+    token_tracker.track(response)
     for part in response.candidates[0].content.parts:
         if part.inline_data is not None:
             img = Image.open(io.BytesIO(part.inline_data.data))

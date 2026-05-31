@@ -20,7 +20,7 @@ HISTORY_SHEET = "Geçmiş"
 HISTORY_HEADERS = ["date", "topic", "post_type", "post_id", "source", "source_link", "caption"]
 
 LOG_SHEET = "Log"
-LOG_HEADERS = ["date", "status", "post_type", "telegram", "articles_found", "selected_topic", "score", "source", "link", "title", "notes"]
+LOG_HEADERS = ["date", "status", "post_type", "telegram", "articles_found", "selected_topic", "score", "source", "link", "title", "input_tokens", "output_tokens", "cost_usd", "api_errors", "notes"]
 
 
 def get_client():
@@ -58,7 +58,8 @@ def load_history() -> list[dict]:
 
 
 def save_log(status: str, articles: list[dict] = [], topic: dict = {},
-             notes: str = "", post_type: str = "", telegram: str = ""):
+             notes: str = "", post_type: str = "", telegram: str = "",
+             tokens: dict = {}):
     """Her çalışmayı Log sayfasına yazar."""
     try:
         sh = get_spreadsheet()
@@ -70,8 +71,13 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+        input_t  = tokens.get("input_tokens", "")
+        output_t = tokens.get("output_tokens", "")
+        cost     = tokens.get("cost_usd", "")
+        api_err  = tokens.get("api_errors", "")
+
         if not articles and not topic:
-            ws.append_row([now, status, post_type, telegram, 0, "", "", "", "", "", notes])
+            ws.append_row([now, status, post_type, telegram, 0, "", "", "", "", "", input_t, output_t, cost, api_err, notes])
             print(f"📋 Log kaydedildi: {status}")
             return
 
@@ -90,6 +96,10 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
                 article.get("source", ""),
                 article.get("link", ""),
                 article.get("title", ""),
+                input_t if i == 0 else "",
+                output_t if i == 0 else "",
+                cost if i == 0 else "",
+                api_err if i == 0 else "",
                 notes if i == 0 else ""
             ])
 

@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from research import fetch_rss_feeds, score_articles, enrich_topic, enrich_carousel
+import token_tracker
 from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
 from post import post_to_instagram, post_carousel_to_instagram
@@ -38,6 +39,8 @@ def run():
     print(f"🤖 AI Instagram Bot başlatıldı — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print("=" * 50)
 
+    token_tracker.reset()
+
     try:
         # 1. Haber Toplama
         print("\n[1/4] 📡 Haberler taranıyor...")
@@ -45,7 +48,7 @@ def run():
         if not articles:
             print("\n⏭️  Son 4 saatte yeni haber yok, atlanıyor.")
             log_run("skipped", {"reason": "Son 4 saatte yeni haber bulunamadı."})
-            save_log("⏭️ haber yok", notes="Son 4 saatte yeni haber bulunamadı.")
+            save_log("⏭️ haber yok", notes="Son 4 saatte yeni haber bulunamadı.", tokens=token_tracker.summary())
             return
 
         # 2. Puanlama
@@ -64,7 +67,7 @@ def run():
         if not high and not medium:
             print("\n⏭️  Yeterli önemde haber yok, atlanıyor.")
             log_run("skipped", {"reason": "Tüm haberler 7 puan altında."})
-            save_log("⏭️ düşük puan", articles=articles, notes="Hiçbir haber yayın eşiğini geçemedi.", post_type="-", telegram="-")
+            save_log("⏭️ düşük puan", articles=articles, notes="Hiçbir haber yayın eşiğini geçemedi.", post_type="-", telegram="-", tokens=token_tracker.summary())
             return
 
         # 3. İçerik + Görsel + Post
@@ -85,7 +88,7 @@ def run():
                     break
                 if not revize:
                     print("❌ Post atlanıyor.")
-                    save_log("⏭️ atlandı", articles=articles, topic=topic, post_type="tek post", telegram="❌ atlandı")
+                    save_log("⏭️ atlandı", articles=articles, topic=topic, post_type="tek post", telegram="❌ atlandı", tokens=token_tracker.summary())
                     return
                 # Revize
                 print("✏️ Revize ediliyor...")
@@ -100,7 +103,7 @@ def run():
             print("\n[7/4] 📤 Post atılıyor...")
             post_id = post_to_instagram(image_path, content["caption"])
             save_to_history(topic, post_id, content["caption"], post_type="tek post", articles=[high[0]])
-            save_log("✅ post edildi", articles=articles, topic=topic, post_type="tek post", telegram="✅ onaylandı")
+            save_log("✅ post edildi", articles=articles, topic=topic, post_type="tek post", telegram="✅ onaylandı", tokens=token_tracker.summary())
 
             log_run("success", {
                 "type": "single",
@@ -127,7 +130,7 @@ def run():
                     break
                 if not revize:
                     print("❌ Carousel atlanıyor.")
-                    save_log("⏭️ atlandı", articles=medium, topic=carousel_topic, post_type="carousel", telegram="❌ atlandı")
+                    save_log("⏭️ atlandı", articles=medium, topic=carousel_topic, post_type="carousel", telegram="❌ atlandı", tokens=token_tracker.summary())
                     return
                 # Revize
                 print("✏️ Carousel revize ediliyor...")
@@ -140,7 +143,7 @@ def run():
             print("\n[7/4] 📤 Carousel post atılıyor...")
             post_id = post_carousel_to_instagram(image_paths, content["caption"])
             save_to_history(carousel_topic, post_id, content["caption"], post_type="carousel", articles=medium)
-            save_log("✅ post edildi", articles=medium, topic=carousel_topic, post_type="carousel", telegram="✅ onaylandı")
+            save_log("✅ post edildi", articles=medium, topic=carousel_topic, post_type="carousel", telegram="✅ onaylandı", tokens=token_tracker.summary())
 
             log_run("success", {
                 "type": "carousel",
@@ -155,7 +158,7 @@ def run():
         print(f"\n❌ Hata: {e}")
         print(error_msg)
         log_run("error", {"error": str(e), "traceback": error_msg})
-        save_log("❌ hata", notes=str(e))
+        save_log("❌ hata", notes=str(e), tokens=token_tracker.summary())
         sys.exit(1)
 
 

@@ -5,6 +5,7 @@ Gemini ile Instagram caption üretir.
 
 from google import genai
 from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, LANGUAGE, HASHTAGS
+import token_tracker
 
 
 def generate_caption(topic: dict) -> dict:
@@ -35,6 +36,7 @@ Sadece caption metnini yaz, başka açıklama ekleme."""
         contents=prompt
     )
 
+    token_tracker.track(response)
     caption_text = response.text.strip()
     hashtag_str = " ".join(HASHTAGS[:10])
     full_caption = f"{caption_text}\n\n{hashtag_str}"
@@ -74,5 +76,6 @@ Sadece caption metnini yaz."""
     hashtag_str = " ".join(HASHTAGS[:10])
     full_caption = f"{caption_text}\n\n{hashtag_str}"
 
+    token_tracker.track(response)
     print(f"✓ Carousel caption üretildi ({len(caption_text)} karakter)")
     return {"caption": full_caption, "caption_text": caption_text}

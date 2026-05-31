@@ -10,6 +10,7 @@ import requests
 from google import genai
 from datetime import datetime, timedelta
 from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, RSS_FEEDS, LANGUAGE, GOOGLE_SHEET_ID
+import token_tracker
 
 
 def load_feeds_from_sheet() -> list[dict]:
@@ -123,6 +124,7 @@ Her haber için SADECE şu formatı kullan, başka hiçbir şey yazma:
         model=GEMINI_TEXT_MODEL,
         contents=prompt
     )
+    token_tracker.track(response)
 
     # Puanları parse et
     scored = []
@@ -170,6 +172,7 @@ KAYNAK_BASLIK: orijinal haber başlığı"""
         model=GEMINI_TEXT_MODEL,
         contents=prompt
     )
+    token_tracker.track(response)
 
     result = {}
     fields = ["KONU", "NEDEN_ÖNEMLI", "ANA_MESAJ", "GORSEL_PROMPT", "KAYNAK_BASLIK"]
@@ -216,6 +219,7 @@ GORSEL_PROMPT: İngilizce futuristik dark neon görsel tarifi"""
             model=GEMINI_TEXT_MODEL,
             contents=prompt
         )
+        token_tracker.track(response)
 
         raw = response.text
         slide = {"source": article["source"], "link": article["link"], "score": article.get("score", 0)}
