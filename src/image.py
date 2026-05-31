@@ -117,3 +117,60 @@ def add_text_overlay(image_path: Path, topic: dict) -> Path:
 def create_post_image(topic: dict) -> Path:
     raw = generate_image(topic)
     return add_text_overlay(raw, topic)
+
+
+def create_carousel_images(slides: list[dict]) -> list[Path]:
+    """Her carousel slaytı için görsel üretir."""
+    paths = []
+    for i, slide in enumerate(slides):
+        print(f"🎨 Slayt {i+1}/{len(slides)} üretiliyor...")
+        topic_like = {
+            "gorsel_prompt": slide.get("gorsel_prompt", "abstract AI visualization"),
+            "konu": slide.get("baslik", ""),
+            "source_name": slide.get("source", "AI News")
+        }
+        raw = generate_image(topic_like)
+
+        # Overlay için slayt başlığını kullan
+        image = Image.open(raw).convert("RGBA")
+        overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        w, h = image.size
+
+        for y in range(h // 2, h):
+            alpha = int(200 * ((y - h // 2) / (h // 2)))
+            draw.line([(0, y), (w, y)], fill=(0, 0, 0, alpha))
+
+        image = Image.alpha_composite(image, overlay).convert("RGB")
+        draw = ImageDraw.Draw(image)
+
+        try:
+            font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 52)
+            font_sub   = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
+        except:
+            font_title = ImageFont.load_default()
+            font_sub   = ImageFont.load_default()
+
+        title = slide.get("baslik", "")
+        words = title.split()
+        lines, current = [], ""
+        for word in words:
+            if len(current + word) < 30:
+                current += word + " "
+            else:
+                lines.append(current.strip())
+                current = word + " "
+        lines.append(current.strip())
+
+        draw.text((55, h - 200), "\n".join(lines[:3]), font=font_title, fill=(0, 220, 255))
+        draw.text((55, h - 65), f"▸ {slide.get('source', '')}", font=font_sub, fill=(160, 160, 160))
+        draw.text((w - 220, h - 50), "@ai.daily.tr", font=font_sub, fill=(80, 80, 80))
+
+        # Slayt numarası
+        draw.text((w - 80, 30), f"{i+1}/{len(slides)}", font=font_sub, fill=(0, 220, 255))
+
+        slide_path = OUTPUT_DIR / f"carousel_{i+1}.png"
+        image.save(slide_path, "PNG", quality=95)
+        paths.append(slide_path)
+
+    return paths

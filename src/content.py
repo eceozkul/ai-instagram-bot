@@ -39,3 +39,37 @@ Sadece caption metnini yaz, başka açıklama ekleme."""
 
     print(f"✓ Caption üretildi ({len(caption_text)} karakter)")
     return {"caption": full_caption, "caption_text": caption_text}
+
+
+def generate_carousel_caption(slides: list[dict]) -> dict:
+    """Carousel post için caption üretir."""
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    lang = "Türkçe" if LANGUAGE == "tr" else "English"
+
+    titles = "\n".join([f"- {s.get('baslik', '')}" for s in slides])
+
+    prompt = f"""Sen bir AI teknoloji Instagram hesabının içerik yazarısın.
+Bu bir carousel (kaydırmalı) post. Birden fazla haberi özetliyor.
+
+Haberler:
+{titles}
+
+{lang} dilinde carousel caption yaz:
+- İlk satır: "🔄 Son [X] saatin AI haberleri:" gibi bir giriş
+- Her haber için 1 satır emoji + kısa özet
+- Son satır: "Kaydet, kaçırma! 🔖"
+- Max 150 kelime
+
+Sadece caption metnini yaz."""
+
+    response = client.models.generate_content(
+        model=GEMINI_TEXT_MODEL,
+        contents=prompt
+    )
+
+    caption_text = response.text.strip()
+    hashtag_str = " ".join(HASHTAGS[:10])
+    full_caption = f"{caption_text}\n\n{hashtag_str}"
+
+    print(f"✓ Carousel caption üretildi ({len(caption_text)} karakter)")
+    return {"caption": full_caption, "caption_text": caption_text}

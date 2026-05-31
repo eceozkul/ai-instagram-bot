@@ -14,6 +14,46 @@ API_URL    = "https://api.upload-post.com/api/upload_photos"
 STATUS_URL = "https://api.upload-post.com/api/uploadposts/status"
 
 
+def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
+    """Birden fazla görsel ile carousel post atar."""
+    print("\n📤 Carousel post gönderiliyor...")
+
+    if not UPLOAD_POST_API_KEY or not UPLOAD_POST_USER:
+        raise ValueError("UPLOAD_POST_API_KEY veya UPLOAD_POST_USER eksik.")
+
+    files = []
+    handles = []
+    for path in image_paths:
+        f = open(path, "rb")
+        handles.append(f)
+        files.append(("photos[]", (path.name, f, "image/png")))
+
+    try:
+        response = requests.post(
+            API_URL,
+            headers={"Authorization": f"Apikey {UPLOAD_POST_API_KEY}"},
+            data={
+                "description": caption,
+                "user": UPLOAD_POST_USER,
+                "platform[]": "instagram",
+                "async_upload": "true",
+            },
+            files=files
+        )
+    finally:
+        for f in handles:
+            f.close()
+
+    data = response.json()
+    if not response.ok:
+        raise ValueError(f"Upload-post hatası: {data}")
+
+    request_id = data.get("request_id", "")
+    print(f"✓ Carousel yükleme başlatıldı. Request ID: {request_id}")
+    _wait_for_completion(request_id)
+    return request_id
+
+
 def post_to_instagram(image_path: Path, caption: str) -> str:
     print("\n📤 Upload-post.com üzerinden Instagram'a gönderiliyor...")
 
