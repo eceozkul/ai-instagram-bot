@@ -8,7 +8,7 @@ from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, LANGUAGE, HASHTAGS
 
 
 def generate_caption(topic: dict) -> dict:
-    client = genai.Client(AQ.Ab8RN6L4WvlhmmCiEmSRox_EUGx2D_k6XaPDxiOggk-I6Y--rA)
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
 

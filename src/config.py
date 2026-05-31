@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv(AQ.Ab8RN6L4WvlhmmCiEmSRox_EUGx2D_k6XaPDxiOggk-I6Y--rA)
-UPLOAD_POST_API_KEY = os.getenv(eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImVjZW96a3VsQGdtYWlsLmNvbSIsImV4cCI6NDkzMzc3MTI4NiwianRpIjoiZGUxYTQ4YWMtYjQ5MS00OTExLWJkYzItZmM0OTBhZmRmODc5In0.yufVrutv4cvDlqL7dr6efZJ6gpQfPcJmEGkXgvNfagw)
-UPLOAD_POST_USER = os.getenv(eceozkul@gmail.com)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+UPLOAD_POST_API_KEY = os.getenv("UPLOAD_POST_API_KEY")
+UPLOAD_POST_USER = os.getenv("UPLOAD_POST_USER")
 
 LANGUAGE = os.getenv("LANGUAGE", "tr")
 
