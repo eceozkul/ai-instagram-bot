@@ -34,22 +34,34 @@ def load_feeds_from_sheet() -> list[dict]:
     return RSS_FEEDS
 
 
-def fetch_rss_feeds() -> list[dict]:
-    """RSS feedlerini çeker, tarih filtresi olmadan tüm haberleri döndürür."""
-    articles = []
+def fetch_rss_feeds(hours: int = 4) -> list[dict]:
+    """RSS feedlerini çeker, son 4 saatteki haberleri döndürür."""
     feeds = load_feeds_from_sheet()
+    articles = _fetch(feeds, hours)
+    print(f"\nToplam {len(articles)} taze haber bulundu.")
+    return articles
+
+
+def _fetch(feeds: list[dict], hours: int) -> list[dict]:
+    """Belirtilen saat aralığındaki haberleri çeker."""
+    articles = []
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
 
     for feed_config in feeds:
         try:
             feed = feedparser.parse(feed_config["url"])
             count = 0
-            for entry in feed.entries[:10]:
+            for entry in feed.entries[:15]:
                 published = None
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
                     try:
                         published = datetime(*entry.published_parsed[:6])
                     except:
                         pass
+
+                # Zaman filtresi: tarihi bilinmiyorsa dahil et
+                if published and published < cutoff:
+                    continue
 
                 articles.append({
                     "source": feed_config["name"],
@@ -61,11 +73,11 @@ def fetch_rss_feeds() -> list[dict]:
                 })
                 count += 1
 
-            print(f"✓ {feed_config['name']}: {count} haber")
+            if count:
+                print(f"✓ {feed_config['name']}: {count} haber")
         except Exception as e:
             print(f"✗ {feed_config['name']} hatası: {e}")
 
-    print(f"\nToplam {len(articles)} haber bulundu.")
     return articles
 
 

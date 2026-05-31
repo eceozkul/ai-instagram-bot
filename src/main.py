@@ -41,7 +41,9 @@ def run():
         print("\n[1/4] 📡 Haberler taranıyor...")
         articles = fetch_rss_feeds()
         if not articles:
-            raise ValueError("Hiç haber bulunamadı.")
+            print("\n⏭️  Son 4 saatte yeni haber yok, atlanıyor.")
+            log_run("skipped", {"reason": "Son 4 saatte yeni haber bulunamadı."})
+            return
 
         print("\n[2/4] 🧠 Geçmiş yükleniyor ve konu seçiliyor...")
         history = load_history()
