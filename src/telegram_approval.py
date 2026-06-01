@@ -26,8 +26,11 @@ def check_commands():
         from sheets import set_bot_status
         resp = requests.get(f"{BASE_URL}/getUpdates", params={"allowed_updates": ["message"]}, timeout=10)
         updates = resp.json().get("result", [])
-        last_offset = None
 
+        if not updates:
+            return
+
+        last_offset = None
         for update in updates:
             last_offset = update["update_id"] + 1
             msg = update.get("message", {})
@@ -46,9 +49,9 @@ def check_commands():
                 status = get_bot_status()
                 _send_message(f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}")
 
-        # Okundu olarak işaretle
+        # Mesajları okundu olarak işaretle — bir sonraki çalışmada tekrar işlenmez
         if last_offset:
-            requests.get(f"{BASE_URL}/getUpdates", params={"offset": last_offset}, timeout=5)
+            requests.post(f"{BASE_URL}/getUpdates", json={"offset": last_offset}, timeout=5)
 
     except Exception as e:
         print(f"⚠️  Komut kontrolü hatası: {e}")
