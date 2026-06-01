@@ -40,10 +40,14 @@ def check_commands():
                 set_bot_status("paused")
                 _send_message("⏸️ Bot duraklatıldı. Devam ettirmek için /resume yaz.")
                 print("⏸️ Bot pause edildi.")
+                from sheets import save_log
+                save_log("⏸️ pause", notes="Telegram'dan /pause komutu alındı.")
             elif text == "/resume":
                 set_bot_status("active")
                 _send_message("▶️ Bot yeniden aktif!")
                 print("▶️ Bot resume edildi.")
+                from sheets import save_log
+                save_log("▶️ resume", notes="Telegram'dan /resume komutu alındı.")
             elif text == "/status":
                 from sheets import get_bot_status
                 status = get_bot_status()
