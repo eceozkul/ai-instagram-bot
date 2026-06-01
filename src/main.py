@@ -102,7 +102,6 @@ def run():
                 # Revize
                 print("✏️ Revize ediliyor...")
                 if "caption" in revize:
-                    from content import generate_caption
                     topic["revize_notu"] = revize["caption"]
                     content = generate_caption(topic)
                 if "image" in revize:
