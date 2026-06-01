@@ -6,7 +6,7 @@ Google Sheets entegrasyonu
 
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 from config import GOOGLE_SHEET_ID
@@ -104,7 +104,7 @@ def load_history() -> list[dict]:
         records = ws.get_all_records()
 
         # Son 15 günü filtrele
-        cutoff = datetime.now() - timedelta(days=15)
+        cutoff = datetime.now(timezone(timedelta(hours=3))) - timedelta(days=15)
         recent = []
         for r in records:
             try:
@@ -133,7 +133,7 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
             ws = sh.add_worksheet(title=LOG_SHEET, rows=5000, cols=len(LOG_HEADERS))
             ws.append_row(LOG_HEADERS)
 
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        now = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d %H:%M")
 
         input_t  = tokens.get("input_tokens", "")
         output_t = tokens.get("output_tokens", "")
@@ -182,7 +182,7 @@ def save_to_history(topic: dict, post_id: str, caption: str, post_type: str = "t
             ws = sh.add_worksheet(title=HISTORY_SHEET, rows=1000, cols=len(HISTORY_HEADERS))
             ws.append_row(HISTORY_HEADERS)
 
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        now = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d %H:%M")
         konu = topic.get("konu", "")
 
         if articles:
