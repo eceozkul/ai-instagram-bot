@@ -51,7 +51,7 @@ def check_commands():
 
         # Mesajları okundu olarak işaretle — bir sonraki çalışmada tekrar işlenmez
         if last_offset:
-            requests.post(f"{BASE_URL}/getUpdates", json={"offset": last_offset}, timeout=5)
+            requests.get(f"{BASE_URL}/getUpdates", params={"offset": last_offset}, timeout=5)
 
     except Exception as e:
         print(f"⚠️  Komut kontrolü hatası: {e}")
