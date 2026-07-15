@@ -121,6 +121,19 @@ def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: li
     return _wait_for_callback(message_id, timeout=3600)
 
 
+def notify_error(text: str):
+    """Hata durumunda kullanıcıya Telegram'dan haber verir. Asla exception fırlatmaz."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    try:
+        requests.post(f"{BASE_URL}/sendMessage", json={
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": text[:4000],
+        }, timeout=10)
+    except Exception:
+        pass
+
+
 def _send_message(text: str):
     requests.post(f"{BASE_URL}/sendMessage", json={
         "chat_id": TELEGRAM_CHAT_ID,

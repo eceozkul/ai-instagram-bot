@@ -41,7 +41,7 @@ Google Sheets Geçmiş + Log
 | Veritabanı | Google Sheets | Ücretsiz |
 | AI | Google Gemini API | Ücretli (cüzi) |
 | Onay | Telegram Bot API | Ücretsiz |
-| Yayın | upload-post.com | Aylık abonelik |
+| Yayın | Meta Graph API (Instagram) | Ücretsiz |
 
 ---
 
@@ -50,18 +50,18 @@ Google Sheets Geçmiş + Log
 ```
 .
 ├── .github/workflows/
-│   ├── daily.yml              # Ana bot — 4 saatte bir
-│   └── telegram_commands.yml  # /pause /resume dinleyici
+│   └── daily.yml              # Ana bot — 4 saatte bir
 ├── src/
 │   ├── main.py                # Orkestratör
 │   ├── config.py              # Sabitler ve env değişkenleri
 │   ├── research.py            # RSS tarama + puanlama
 │   ├── content.py             # Gemini caption üretimi
 │   ├── image.py               # Gemini görsel + overlay
-│   ├── post.py                # upload-post.com API
+│   ├── meta_post.py           # Meta Graph API ile Instagram yayını
 │   ├── sheets.py              # Google Sheets okuma/yazma
 │   ├── telegram_approval.py   # Telegram onay sistemi
 │   ├── token_tracker.py       # Token sayacı
+│   ├── output/                # Üretilen görseller (3 gün saklanır)
 │   └── logo.png               # (opsiyonel) Görsele eklenir
 ├── requirements.txt
 ├── .env.example               # Yerel test için template
@@ -105,7 +105,8 @@ Bota şunları yazabilirsin:
 - `/resume` — botu yeniden aktif et
 - `/status` — bot şu an aktif mi?
 
-Komutlar 5 dakikada bir kontrol edilir.
+Komutlar her çalışmanın başında (4 saatte bir) okunur. Acil değişiklik için Google Sheet'teki
+Ayarlar sayfasından `bot_status` değerini elle değiştirebilirsin.
 
 ---
 
@@ -131,9 +132,9 @@ Komutlar 5 dakikada bir kontrol edilir.
 Detaylı kurulum için **[SETUP.md](SETUP.md)** dosyasını oku.
 
 Özet:
-1. Bu repoyu fork'la
+1. Bu repoyu fork'la (repo **public** olmalı — Meta, görselleri raw URL'den indirir)
 2. Gemini API key al
-3. upload-post.com hesabı aç + Instagram bağla
+3. Meta developer app oluştur + Instagram Business hesabını bağla, access token al
 4. Telegram bot oluştur
 5. Google Sheet oluştur + service account ile paylaş
 6. GitHub Secrets'a 6 değişkeni ekle
@@ -156,11 +157,11 @@ Bu sistem AI haberleri için yazılmış. Başka konuya çevirmek için:
 ## 💰 Tahmini Aylık Maliyet
 
 - **Gemini API:** ~$2-5 (günde 6 çalışma)
-- **upload-post.com:** Aboneliğine bağlı
+- **Meta Graph API:** Ücretsiz
 - **GitHub Actions:** Ücretsiz
 - **Diğer:** Ücretsiz
 
-Toplam: **~$5-10/ay** + upload-post.com aboneliği
+Toplam: **~$2-5/ay**
 
 ---
 
@@ -169,7 +170,8 @@ Toplam: **~$5-10/ay** + upload-post.com aboneliği
 | Sorun | Çözüm |
 |-------|-------|
 | 404 Model Not Found | Gemini modeli değişmiş olabilir, `config.py` güncelle |
-| Username not associated | upload-post.com'da Instagram bağlı değil |
+| Invalid OAuth access token | Meta token süresi dolmuş (~60 gün), yeni token üret ve secret'ı güncelle |
+| Media download has failed | Repo private kalmış veya görsel URL'si yanlış — repo public olmalı |
 | 429 Rate Limit | Gemini ücretsiz kotanı geçtin, billing aç |
 | Sheet okunamadı | Service account email Sheet'le paylaşılmamış |
 | Telegram tepki yok | Bot'a önce manuel mesaj at, sonra getUpdates çalışır |

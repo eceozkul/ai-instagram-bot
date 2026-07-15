@@ -23,12 +23,21 @@ GitHub'da bu repoyu **Fork** et veya yeni bir repo açıp dosyaları yükle.
 
 ---
 
-## 📸 3. upload-post.com Hesabı
+## 📸 3. Meta (Instagram) API Erişimi
 
-1. [upload-post.com](https://upload-post.com) → kayıt ol
-2. **Users** sekmesi → **Add Profile** → Instagram'ını bağla
-3. Profile adını not al (örn. `my_account_news`)
-4. **API Keys** sekmesi → key oluştur, kopyala
+Gereksinimler: **Instagram Business hesabı** (ayarlardan Creator/Business'a çevir).
+
+1. [developers.facebook.com](https://developers.facebook.com) → **My Apps → Create App** (tip: Business/İşletme)
+2. App'e **Instagram** ürününü ekle → **API setup with Instagram business login**
+3. **Generate access tokens** bölümünde Instagram hesabını bağla
+4. Hesabın altında görünen numerik ID'yi not al → bu senin `IG_BUSINESS_ID`
+5. **Generate token** ile access token oluştur → bu senin `META_ACCESS_TOKEN` (`IGAA...` ile başlar)
+
+> ⚠️ Token ~60 günde bir yenilenmeli. Süresi dolunca bot Telegram'dan hata bildirir;
+> yeni token üretip GitHub Secret'ı güncellemen yeterli.
+
+> ⚠️ Repo **public** olmalı — Meta, görselleri `raw.githubusercontent.com` URL'sinden indirir,
+> private repolarda bu URL dışarıya kapalıdır.
 
 ---
 
@@ -91,8 +100,8 @@ Reponun **Settings → Secrets and variables → Actions → New repository secr
 | Secret Name | Değer |
 |-------------|-------|
 | `GEMINI_API_KEY` | 2. adımdaki key (`AIza...`) |
-| `UPLOAD_POST_API_KEY` | 3. adımdaki upload-post key |
-| `UPLOAD_POST_USER` | 3. adımdaki profile adı |
+| `META_ACCESS_TOKEN` | 3. adımdaki Instagram access token (`IGAA...`) |
+| `IG_BUSINESS_ID` | 3. adımdaki numerik Instagram hesap ID'si |
 | `TELEGRAM_BOT_TOKEN` | 4. adımdaki bot token |
 | `TELEGRAM_CHAT_ID` | 4. adımdaki chat ID |
 | `GOOGLE_SERVICE_ACCOUNT` | 5. adımdaki JSON dosyasının **tüm içeriği tek satırda** |
@@ -180,8 +189,11 @@ for m in client.models.list():
     print(m.name)
 ```
 
-### "Username not associated with any profile"
-upload-post.com'a girip Instagram profilini bağlamayı unutmuşsun, ya da `UPLOAD_POST_USER` secret'ı yanlış. Doğru profile adını yaz.
+### "Invalid OAuth access token"
+Meta token'ı yanlış kopyalanmış veya süresi dolmuş (~60 gün). Meta developer panelinden yeni token üret, `META_ACCESS_TOKEN` secret'ını güncelle.
+
+### "Media download has failed"
+Meta görseli indiremiyor — repo private kalmış olabilir, public yap.
 
 ### "429 RESOURCE_EXHAUSTED"
 Gemini ücretsiz kotanı geçtin. Google Cloud Console → Billing'i aktif et.
@@ -208,7 +220,8 @@ GitHub Secrets'a JSON içeriğini eklemeyi unutmuşsun veya tek satırda değil.
 - `/resume` → devam ettir
 - `/status` → şu an aktif mi?
 
-Komutlar 5 dakikada bir kontrol edilir.
+Komutlar her çalışmanın başında (4 saatte bir) okunur. Acil durumda Google Sheet'teki
+Ayarlar sayfasından `bot_status` değerini elle değiştirebilirsin.
 
 ---
 

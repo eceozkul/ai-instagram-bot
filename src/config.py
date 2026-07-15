@@ -4,8 +4,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-UPLOAD_POST_API_KEY = os.getenv("UPLOAD_POST_API_KEY")
-UPLOAD_POST_USER = os.getenv("UPLOAD_POST_USER")
 
 LANGUAGE = os.getenv("LANGUAGE", "tr")
 
@@ -14,11 +12,11 @@ GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1_pUUpZLwqsDSIQhIVNdrZhgzX3f3gUx
 GEMINI_TEXT_MODEL = "gemini-2.5-flash"
 GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 
+# Google Sheet okunamazsa kullanılacak yedek liste — sadece çalıştığı doğrulanmış feed'ler
 RSS_FEEDS = [
-    {"name": "Anthropic Blog",  "url": "https://www.anthropic.com/rss.xml",                                 "priority": 1},
-    {"name": "TechCrunch AI",   "url": "https://techcrunch.com/category/artificial-intelligence/feed/",     "priority": 2},
-    {"name": "The Verge AI",    "url": "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml", "priority": 2},
-    {"name": "ArXiv CS.AI",     "url": "https://rss.arxiv.org/rss/cs.AI",                                   "priority": 3},
+    {"name": "TechCrunch AI", "url": "https://techcrunch.com/category/artificial-intelligence/feed/", "priority": 1},
+    {"name": "Hacker News",   "url": "https://news.ycombinator.com/rss",                              "priority": 1},
+    {"name": "VentureBeat AI","url": "https://venturebeat.com/category/ai/feed/",                     "priority": 2},
 ]
 
 IMAGE_SIZE = 1080
