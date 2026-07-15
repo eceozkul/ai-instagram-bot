@@ -57,7 +57,7 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     return urls
 
 
-def _clean_old_images(days: int = 7):
+def _clean_old_images(days: int = 3):
     """N günden eski görselleri siler ve commit eder."""
     if not OUTPUT_DIR.exists():
         return
