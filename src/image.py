@@ -6,10 +6,9 @@ Gemini 2.0 Flash ile futuristik görsel üretir, minimal metin overlay ekler.
 import io
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-from google import genai
 from google.genai import types
-from config import GEMINI_API_KEY, GEMINI_IMAGE_MODEL, IMAGE_SIZE
-import token_tracker
+from config import GEMINI_IMAGE_MODEL, IMAGE_SIZE
+import gemini_client
 
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -26,21 +25,19 @@ def build_image_prompt(topic: dict) -> str:
 
 
 def generate_image(topic: dict) -> Path:
-    """Gemini 2.0 Flash Exp ile görsel üret."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    """Gemini ile görsel üret."""
     prompt = build_image_prompt(topic)
 
     print(f"🎨 Görsel üretiliyor...")
 
-    response = client.models.generate_content(
-        model=GEMINI_IMAGE_MODEL,
-        contents=prompt,
+    response = gemini_client.generate(
+        prompt,
         config=types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"]
-        )
+        ),
+        model=GEMINI_IMAGE_MODEL,
     )
 
-    token_tracker.track(response)
     for part in response.candidates[0].content.parts:
         if part.inline_data is not None:
             img = Image.open(io.BytesIO(part.inline_data.data))

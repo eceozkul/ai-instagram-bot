@@ -17,6 +17,28 @@ GITHUB_REPO       = os.getenv("GITHUB_REPO", "eceozkul/ai-instagram-bot")
 GRAPH_URL = "https://graph.instagram.com/v21.0"
 OUTPUT_DIR = Path("output")
 
+RETRIES = 3
+BASE_DELAY = 5
+
+
+def _request(method: str, url: str, **kwargs) -> requests.Response:
+    """Meta API isteği — ağ hataları ve 5xx yanıtlarında tekrar dener."""
+    kwargs.setdefault("timeout", 60)
+    last_err = None
+    for attempt in range(1, RETRIES + 1):
+        try:
+            r = requests.request(method, url, **kwargs)
+            if r.status_code >= 500:
+                raise requests.RequestException(f"HTTP {r.status_code}: {r.text[:200]}")
+            return r
+        except requests.RequestException as e:
+            last_err = e
+            if attempt < RETRIES:
+                wait = BASE_DELAY * attempt
+                print(f"  ⚠️  Meta isteği hatası (deneme {attempt}/{RETRIES}), {wait} sn sonra tekrar: {e}")
+                time.sleep(wait)
+    raise last_err
+
 
 def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     """Görselleri repoya commit eder, raw URL listesini döner."""
@@ -92,7 +114,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     print(f"  Görsel URL: {image_url}")
 
     # 2. Media container oluştur
-    r = requests.post(f"{GRAPH_URL}/me/media", data={
+    r = _request("post", f"{GRAPH_URL}/me/media", data={
         "image_url":    image_url,
         "caption":      caption,
         "access_token": META_ACCESS_TOKEN,
@@ -107,7 +129,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     _wait_for_container(creation_id)
 
     # 4. Publish
-    r = requests.post(f"{GRAPH_URL}/me/media_publish", data={
+    r = _request("post", f"{GRAPH_URL}/me/media_publish", data={
         "creation_id":  creation_id,
         "access_token": META_ACCESS_TOKEN,
     })
@@ -135,7 +157,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
     # 2. Her görsel için container oluştur (is_carousel_item=true)
     child_ids = []
     for url in urls:
-        r = requests.post(f"{GRAPH_URL}/me/media", data={
+        r = _request("post", f"{GRAPH_URL}/me/media", data={
             "image_url":         url,
             "is_carousel_item":  "true",
             "access_token":      META_ACCESS_TOKEN,
@@ -151,7 +173,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
         _wait_for_container(cid)
 
     # 3. Carousel container oluştur
-    r = requests.post(f"{GRAPH_URL}/me/media", data={
+    r = _request("post", f"{GRAPH_URL}/me/media", data={
         "media_type":   "CAROUSEL",
         "children":     ",".join(child_ids),
         "caption":      caption,
@@ -164,7 +186,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
     _wait_for_container(creation_id)
 
     # 4. Publish
-    r = requests.post(f"{GRAPH_URL}/me/media_publish", data={
+    r = _request("post", f"{GRAPH_URL}/me/media_publish", data={
         "creation_id":  creation_id,
         "access_token": META_ACCESS_TOKEN,
     })
@@ -182,7 +204,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
 def _wait_for_container(creation_id: str, timeout: int = 60):
     """Container'ın FINISHED durumuna gelmesini bekler."""
     for _ in range(timeout // 3):
-        r = requests.get(f"{GRAPH_URL}/{creation_id}", params={
+        r = _request("get", f"{GRAPH_URL}/{creation_id}", params={
             "fields":       "status_code",
             "access_token": META_ACCESS_TOKEN,
         })

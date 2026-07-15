@@ -3,23 +3,19 @@ Modül 2: İçerik Üretimi
 Gemini ile Instagram caption üretir.
 """
 
-from google import genai
-from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, LANGUAGE, HASHTAGS
-import token_tracker
+from config import LANGUAGE, HASHTAGS
+import gemini_client
 
 
 def generate_caption(topic: dict) -> dict:
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
-
     revize = f"\n\nRevize talebi: {topic['revize_notu']}" if topic.get("revize_notu") else ""
 
     prompt = f"""Sen bir AI teknoloji Instagram hesabının içerik yazarısın.
 Stil: Minimal, futuristik, etkileyici. Karmaşık konuları herkesin anlayacağı şekilde anlatırsın.
 
 Konu: {topic.get('konu', '')}
-Neden Önemli: {topic.get('neden_önemli', '')}
+Neden Önemli: {topic.get('neden_onemli', '')}
 Açılış (bunu kullan): {topic.get('ana_mesaj', '')}{revize}
 
 {lang} dilinde Instagram caption yaz:
@@ -31,13 +27,7 @@ Açılış (bunu kullan): {topic.get('ana_mesaj', '')}{revize}
 
 Sadece caption metnini yaz, başka açıklama ekleme."""
 
-    response = client.models.generate_content(
-        model=GEMINI_TEXT_MODEL,
-        contents=prompt
-    )
-
-    token_tracker.track(response)
-    caption_text = response.text.strip()
+    caption_text = gemini_client.generate_text(prompt)
     hashtag_str = " ".join(HASHTAGS[:10])
     full_caption = f"{caption_text}\n\n{hashtag_str}"
 
@@ -47,9 +37,7 @@ Sadece caption metnini yaz, başka açıklama ekleme."""
 
 def generate_carousel_caption(slides: list[dict]) -> dict:
     """Carousel post için caption üretir."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
-
     titles = "\n".join([f"- {s.get('baslik', '')}" for s in slides])
 
     prompt = f"""Sen bir AI teknoloji Instagram hesabının içerik yazarısın.
@@ -67,15 +55,9 @@ Haberler:
 
 Sadece caption metnini yaz."""
 
-    response = client.models.generate_content(
-        model=GEMINI_TEXT_MODEL,
-        contents=prompt
-    )
-
-    caption_text = response.text.strip()
+    caption_text = gemini_client.generate_text(prompt)
     hashtag_str = " ".join(HASHTAGS[:10])
     full_caption = f"{caption_text}\n\n{hashtag_str}"
 
-    token_tracker.track(response)
     print(f"✓ Carousel caption üretildi ({len(caption_text)} karakter)")
     return {"caption": full_caption, "caption_text": caption_text}

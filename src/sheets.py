@@ -148,8 +148,9 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
         selected_title = topic.get("konu", "")
         selected_score = topic.get("score", "")
 
+        rows = []
         for i, article in enumerate(articles):
-            ws.append_row([
+            rows.append([
                 now if i == 0 else "",
                 status if i == 0 else "",
                 post_type if i == 0 else "",
@@ -167,6 +168,8 @@ def save_log(status: str, articles: list[dict] = [], topic: dict = {},
                 notes if i == 0 else ""
             ])
 
+        # Tüm satırlar tek API çağrısında yazılır (kota dostu)
+        ws.append_rows(rows, value_input_option="RAW")
         print(f"📋 Log kaydedildi: {len(articles)} haber.")
     except Exception as e:
         print(f"⚠️  Log yazılamadı: {e}")
@@ -186,8 +189,9 @@ def save_to_history(topic: dict, post_id: str, caption: str, post_type: str = "t
         konu = topic.get("konu", "")
 
         if articles:
+            rows = []
             for i, article in enumerate(articles):
-                ws.append_row([
+                rows.append([
                     now if i == 0 else "",
                     konu if i == 0 else "",
                     post_type if i == 0 else "",
@@ -196,6 +200,7 @@ def save_to_history(topic: dict, post_id: str, caption: str, post_type: str = "t
                     article.get("link", ""),
                     caption[:200] if i == 0 else ""
                 ])
+            ws.append_rows(rows, value_input_option="RAW")
         else:
             ws.append_row([
                 now, konu, post_type, post_id,

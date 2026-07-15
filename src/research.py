@@ -7,10 +7,9 @@ import csv
 import io
 import feedparser
 import requests
-from google import genai
 from datetime import datetime, timedelta
-from config import GEMINI_API_KEY, GEMINI_TEXT_MODEL, RSS_FEEDS, LANGUAGE, GOOGLE_SHEET_ID
-import token_tracker
+from config import RSS_FEEDS, LANGUAGE, GOOGLE_SHEET_ID
+import gemini_client
 
 
 def load_feeds_from_sheet() -> list[dict]:
@@ -87,8 +86,6 @@ def score_articles(articles: list[dict], history: list[dict] = []) -> list[dict]
     if not articles:
         return []
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
     articles_text = "\n\n".join([
         f"[{i+1}] Kaynak: {a['source']}\nBaşlık: {a['title']}\nÖzet: {a['summary']}"
         for i, a in enumerate(articles[:25])
@@ -113,33 +110,29 @@ Puanlama kriterleri:
 Haberler:
 {articles_text}
 
-Her haber için SADECE şu formatı kullan, başka hiçbir şey yazma:
-[numara]: puan
-Örnek:
-[1]: 8
-[2]: 3
-[3]: 9"""
+Her haber için numarasını (index, 1'den başlar) ve 1-10 arası puanını (score) döndür."""
 
-    response = client.models.generate_content(
-        model=GEMINI_TEXT_MODEL,
-        contents=prompt
-    )
-    token_tracker.track(response)
+    schema = {
+        "type": "ARRAY",
+        "items": {
+            "type": "OBJECT",
+            "properties": {
+                "index": {"type": "INTEGER"},
+                "score": {"type": "INTEGER"},
+            },
+            "required": ["index", "score"],
+        },
+    }
 
-    # Puanları parse et
-    scored = []
-    lines = response.text.strip().split("\n")
+    results = gemini_client.generate_json(prompt, schema)
     scores = {}
-    for line in lines:
-        line = line.strip()
-        if line.startswith("[") and ":" in line:
-            try:
-                idx = int(line.split("]")[0].replace("[", "")) - 1
-                score = int(line.split(":")[1].strip())
-                scores[idx] = score
-            except:
-                pass
+    for r in results:
+        try:
+            scores[int(r["index"]) - 1] = max(1, min(10, int(r["score"])))
+        except (KeyError, ValueError, TypeError):
+            pass
 
+    scored = []
     for i, article in enumerate(articles[:25]):
         score = scores.get(i, 5)
         scored.append({**article, "score": score})
@@ -150,43 +143,33 @@ Her haber için SADECE şu formatı kullan, başka hiçbir şey yazma:
 
 def enrich_topic(article: dict, articles: list[dict]) -> dict:
     """Seçilen haber için Gemini'den detay üretir."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
 
-    prompt = f"""Şu yapay zeka haberi için Instagram postu hazırla.
+    prompt = f"""Şu yapay zeka haberi için Instagram postu hazırla. Metinler {lang} olsun.
 
 Haber:
 Kaynak: {article['source']}
 Başlık: {article['title']}
 Özet: {article['summary']}
 
-Her satırı TAM OLARAK bu formatla {lang} olarak yaz:
+Alanlar:
+- konu: tek cümle başlık
+- neden_onemli: 2-3 cümle sade dille
+- ana_mesaj: çarpıcı açılış cümlesi, emoji ile
+- gorsel_prompt: İngilizce futuristik dark neon görsel tarifi (görselde metin olmasın)"""
 
-KONU: tek cümle başlık
-NEDEN_ÖNEMLI: 2-3 cümle sade dille
-ANA_MESAJ: çarpıcı açılış cümlesi emoji ile
-GORSEL_PROMPT: İngilizce futuristik dark neon görsel tarifi sadece görsel metin yok
-KAYNAK_BASLIK: orijinal haber başlığı"""
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "konu":          {"type": "STRING"},
+            "neden_onemli":  {"type": "STRING"},
+            "ana_mesaj":     {"type": "STRING"},
+            "gorsel_prompt": {"type": "STRING"},
+        },
+        "required": ["konu", "neden_onemli", "ana_mesaj", "gorsel_prompt"],
+    }
 
-    response = client.models.generate_content(
-        model=GEMINI_TEXT_MODEL,
-        contents=prompt
-    )
-    token_tracker.track(response)
-
-    result = {}
-    fields = ["KONU", "NEDEN_ÖNEMLI", "ANA_MESAJ", "GORSEL_PROMPT", "KAYNAK_BASLIK"]
-    raw = response.text
-
-    for field in fields:
-        tag = f"{field}:"
-        if tag in raw:
-            start = raw.index(tag) + len(tag)
-            next_positions = [raw.index(f"{f}:") for f in fields
-                              if f"{f}:" in raw and raw.index(f"{f}:") > start]
-            end = min(next_positions) if next_positions else len(raw)
-            result[field.lower()] = raw[start:end].strip()
-
+    result = gemini_client.generate_json(prompt, schema)
     result["source_link"] = article.get("link", "")
     result["source_name"] = article.get("source", "AI News")
     result["score"] = article.get("score", 0)
@@ -197,41 +180,36 @@ KAYNAK_BASLIK: orijinal haber başlığı"""
 
 def enrich_carousel(articles: list[dict]) -> list[dict]:
     """Carousel için her haberi kısaca zenginleştirir."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
     lang = "Türkçe" if LANGUAGE == "tr" else "English"
+
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "baslik":        {"type": "STRING"},
+            "aciklama":      {"type": "STRING"},
+            "gorsel_prompt": {"type": "STRING"},
+        },
+        "required": ["baslik", "aciklama", "gorsel_prompt"],
+    }
 
     enriched = []
     for article in articles:
-        prompt = f"""Şu yapay zeka haberi için Instagram carousel slaytı hazırla.
+        prompt = f"""Şu yapay zeka haberi için Instagram carousel slaytı hazırla. Metinler {lang} olsun.
 
 Haber:
 Başlık: {article['title']}
 Özet: {article['summary']}
 Kaynak: {article['source']}
 
-{lang} olarak TAM OLARAK bu formatla yaz:
+Alanlar:
+- baslik: kısa çarpıcı başlık (max 8 kelime)
+- aciklama: 2 cümle sade açıklama
+- gorsel_prompt: İngilizce futuristik dark neon görsel tarifi"""
 
-BASLIK: kısa çarpıcı başlık (max 8 kelime)
-ACIKLAMA: 2 cümle sade açıklama
-GORSEL_PROMPT: İngilizce futuristik dark neon görsel tarifi"""
-
-        response = client.models.generate_content(
-            model=GEMINI_TEXT_MODEL,
-            contents=prompt
-        )
-        token_tracker.track(response)
-
-        raw = response.text
-        slide = {"source": article["source"], "link": article["link"], "score": article.get("score", 0)}
-        for field in ["BASLIK", "ACIKLAMA", "GORSEL_PROMPT"]:
-            tag = f"{field}:"
-            if tag in raw:
-                start = raw.index(tag) + len(tag)
-                next_fields = [f for f in ["BASLIK", "ACIKLAMA", "GORSEL_PROMPT"] if f != field]
-                next_positions = [raw.index(f"{f}:") for f in next_fields
-                                  if f"{f}:" in raw and raw.index(f"{f}:") > start]
-                end = min(next_positions) if next_positions else len(raw)
-                slide[field.lower()] = raw[start:end].strip().replace("**", "").replace("*", "").strip()
-
+        slide = gemini_client.generate_json(prompt, schema)
+        slide["source"] = article["source"]
+        slide["link"] = article["link"]
+        slide["score"] = article.get("score", 0)
         enriched.append(slide)
+
     return enriched
