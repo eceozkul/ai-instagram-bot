@@ -81,7 +81,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     print(f"  Görsel URL: {image_url}")
 
     # 2. Media container oluştur
-    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+    r = requests.post(f"{GRAPH_URL}/me/media", data={
         "image_url":    image_url,
         "caption":      caption,
         "access_token": META_ACCESS_TOKEN,
@@ -96,7 +96,7 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     _wait_for_container(creation_id)
 
     # 4. Publish
-    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media_publish", data={
+    r = requests.post(f"{GRAPH_URL}/me/media_publish", data={
         "creation_id":  creation_id,
         "access_token": META_ACCESS_TOKEN,
     })
@@ -124,7 +124,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
     # 2. Her görsel için container oluştur (is_carousel_item=true)
     child_ids = []
     for url in urls:
-        r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+        r = requests.post(f"{GRAPH_URL}/me/media", data={
             "image_url":         url,
             "is_carousel_item":  "true",
             "access_token":      META_ACCESS_TOKEN,
@@ -140,7 +140,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
         _wait_for_container(cid)
 
     # 3. Carousel container oluştur
-    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+    r = requests.post(f"{GRAPH_URL}/me/media", data={
         "media_type":   "CAROUSEL",
         "children":     ",".join(child_ids),
         "caption":      caption,
@@ -153,7 +153,7 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
     _wait_for_container(creation_id)
 
     # 4. Publish
-    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media_publish", data={
+    r = requests.post(f"{GRAPH_URL}/me/media_publish", data={
         "creation_id":  creation_id,
         "access_token": META_ACCESS_TOKEN,
     })
