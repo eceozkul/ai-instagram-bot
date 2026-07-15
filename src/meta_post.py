@@ -1,0 +1,179 @@
+"""
+Meta Graph API — Instagram Direct Publishing
+Görselleri repoya commit eder, Meta'ya raw URL verir.
+"""
+
+import os
+import time
+import subprocess
+import requests
+from datetime import datetime, timedelta
+from pathlib import Path
+
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
+IG_BUSINESS_ID    = os.getenv("IG_BUSINESS_ID")
+GITHUB_REPO       = os.getenv("GITHUB_REPO", "eceozkul/ai-instagram-bot")
+
+GRAPH_URL = "https://graph.facebook.com/v21.0"
+OUTPUT_DIR = Path("output")
+
+
+def _commit_and_push(paths: list[Path], message: str) -> list[str]:
+    """Görselleri repoya commit eder, raw URL listesini döner."""
+    subprocess.run(["git", "config", "user.email", "bot@github.actions"], check=True)
+    subprocess.run(["git", "config", "user.name", "AI Bot"], check=True)
+
+    for path in paths:
+        subprocess.run(["git", "add", str(path)], check=True)
+
+    subprocess.run(["git", "commit", "-m", message], check=True)
+    subprocess.run(["git", "push"], check=True)
+
+    # Commit sonrası raw URL'leri al
+    urls = []
+    for path in paths:
+        rel = path.relative_to(Path.cwd()) if path.is_absolute() else path
+        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{rel}"
+        urls.append(url)
+
+    # Meta'nın URL'yi görmesi için birkaç saniye bekle (CDN cache)
+    time.sleep(15)
+    return urls
+
+
+def _clean_old_images(days: int = 7):
+    """N günden eski görselleri siler ve commit eder."""
+    if not OUTPUT_DIR.exists():
+        return
+
+    cutoff = time.time() - (days * 86400)
+    deleted = []
+    for path in OUTPUT_DIR.glob("*.png"):
+        if path.stat().st_mtime < cutoff:
+            path.unlink()
+            deleted.append(str(path))
+
+    if deleted:
+        subprocess.run(["git", "config", "user.email", "bot@github.actions"], check=True)
+        subprocess.run(["git", "config", "user.name", "AI Bot"], check=True)
+        for f in deleted:
+            subprocess.run(["git", "rm", f], check=False)
+        subprocess.run(["git", "commit", "-m", f"Clean up {len(deleted)} old images"], check=False)
+        subprocess.run(["git", "push"], check=False)
+        print(f"🗑️  {len(deleted)} eski görsel silindi.")
+
+
+def post_to_instagram(image_path: Path, caption: str) -> str:
+    """Meta Graph API ile Instagram'a tek görsel post atar."""
+    print("\n📤 Meta Graph API üzerinden Instagram'a gönderiliyor...")
+
+    if not META_ACCESS_TOKEN or not IG_BUSINESS_ID:
+        raise ValueError("META_ACCESS_TOKEN veya IG_BUSINESS_ID eksik.")
+
+    # 1. Görseli commit et, URL al
+    urls = _commit_and_push([image_path], f"Post image: {image_path.name}")
+    image_url = urls[0]
+    print(f"  Görsel URL: {image_url}")
+
+    # 2. Media container oluştur
+    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+        "image_url":    image_url,
+        "caption":      caption,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Media container hatası: {data}")
+    creation_id = data["id"]
+    print(f"  Container ID: {creation_id}")
+
+    # 3. Container'ın hazır olmasını bekle
+    _wait_for_container(creation_id)
+
+    # 4. Publish
+    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media_publish", data={
+        "creation_id":  creation_id,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Publish hatası: {data}")
+
+    post_id = data["id"]
+    print(f"✓ Instagram'da yayınlandı! Post ID: {post_id}")
+
+    _clean_old_images()
+    return post_id
+
+
+def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
+    """Meta Graph API ile carousel post atar."""
+    print(f"\n📤 Meta Graph API üzerinden carousel gönderiliyor ({len(image_paths)} slayt)...")
+
+    if not META_ACCESS_TOKEN or not IG_BUSINESS_ID:
+        raise ValueError("META_ACCESS_TOKEN veya IG_BUSINESS_ID eksik.")
+
+    # 1. Tüm görselleri commit et
+    urls = _commit_and_push(image_paths, f"Carousel: {len(image_paths)} images")
+
+    # 2. Her görsel için container oluştur (is_carousel_item=true)
+    child_ids = []
+    for url in urls:
+        r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+            "image_url":         url,
+            "is_carousel_item":  "true",
+            "access_token":      META_ACCESS_TOKEN,
+        })
+        data = r.json()
+        if "id" not in data:
+            raise ValueError(f"Carousel child container hatası: {data}")
+        child_ids.append(data["id"])
+        print(f"  Child container: {data['id']}")
+
+    # Container'ların hazır olmasını bekle
+    for cid in child_ids:
+        _wait_for_container(cid)
+
+    # 3. Carousel container oluştur
+    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media", data={
+        "media_type":   "CAROUSEL",
+        "children":     ",".join(child_ids),
+        "caption":      caption,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Carousel container hatası: {data}")
+    creation_id = data["id"]
+    _wait_for_container(creation_id)
+
+    # 4. Publish
+    r = requests.post(f"{GRAPH_URL}/{IG_BUSINESS_ID}/media_publish", data={
+        "creation_id":  creation_id,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Carousel publish hatası: {data}")
+
+    post_id = data["id"]
+    print(f"✓ Carousel Instagram'da yayınlandı! Post ID: {post_id}")
+
+    _clean_old_images()
+    return post_id
+
+
+def _wait_for_container(creation_id: str, timeout: int = 60):
+    """Container'ın FINISHED durumuna gelmesini bekler."""
+    for _ in range(timeout // 3):
+        r = requests.get(f"{GRAPH_URL}/{creation_id}", params={
+            "fields":       "status_code",
+            "access_token": META_ACCESS_TOKEN,
+        })
+        status = r.json().get("status_code")
+        if status == "FINISHED":
+            return
+        if status == "ERROR":
+            raise ValueError(f"Container hazırlanamadı: {r.json()}")
+        time.sleep(3)
+    raise TimeoutError(f"Container timeout: {creation_id}")
