@@ -34,8 +34,10 @@ def load_feeds_from_sheet() -> list[dict]:
     return RSS_FEEDS
 
 
-def fetch_rss_feeds(hours: int = 4) -> list[dict]:
-    """RSS feedlerini çeker, son 4 saatteki haberleri döndürür."""
+def fetch_rss_feeds(hours: int = 5) -> list[dict]:
+    """RSS feedlerini çeker, son 5 saatteki haberleri döndürür.
+    Pencere 4 saatlik cron aralığından geniş tutulur — cron gecikirse haber kaçmaz;
+    tekrarlar Geçmiş kontrolüyle zaten eleniyor."""
     feeds = load_feeds_from_sheet()
     articles = _fetch(feeds, hours)
     print(f"\nToplam {len(articles)} taze haber bulundu.")
