@@ -70,6 +70,11 @@ def post_to_instagram(image_path: Path, caption: str) -> str:
     if not META_ACCESS_TOKEN or not IG_BUSINESS_ID:
         raise ValueError("META_ACCESS_TOKEN veya IG_BUSINESS_ID eksik.")
 
+    # Debug — token durumunu göster
+    t = META_ACCESS_TOKEN
+    print(f"  Token: {len(t)} karakter, başı={t[:10]!r}, sonu={t[-10:]!r}")
+    print(f"  IG_BUSINESS_ID: {IG_BUSINESS_ID!r}")
+
     # 1. Görseli commit et, URL al
     urls = _commit_and_push([image_path], f"Post image: {image_path.name}")
     image_url = urls[0]
