@@ -29,10 +29,15 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     subprocess.run(["git", "commit", "-m", message], check=True)
     subprocess.run(["git", "push"], check=True)
 
-    # Commit sonrası raw URL'leri al
+    # Commit sonrası raw URL'leri al — yol repo köküne göre olmalı
+    repo_root = Path(subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True
+    ).stdout.strip())
+
     urls = []
     for path in paths:
-        rel = path.relative_to(Path.cwd()) if path.is_absolute() else path
+        rel = path.resolve().relative_to(repo_root)
         url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{rel}"
         urls.append(url)
 
