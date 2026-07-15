@@ -14,7 +14,7 @@ META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 IG_BUSINESS_ID    = os.getenv("IG_BUSINESS_ID")
 GITHUB_REPO       = os.getenv("GITHUB_REPO", "eceozkul/ai-instagram-bot")
 
-GRAPH_URL = "https://graph.facebook.com/v21.0"
+GRAPH_URL = "https://graph.instagram.com/v21.0"
 OUTPUT_DIR = Path("output")
 
 
