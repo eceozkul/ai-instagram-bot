@@ -33,7 +33,7 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     urls = []
     for path in paths:
         rel = path.relative_to(Path.cwd()) if path.is_absolute() else path
-        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{rel}"
+        url = f"https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/{rel}"
         urls.append(url)
 
     # URL'lerin gerçekten erişilebilir olmasını bekle
