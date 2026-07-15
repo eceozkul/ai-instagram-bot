@@ -14,16 +14,60 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 
+def _handle_command(text: str) -> bool:
+    """
+    Bilinen bir Telegram komutunu işler. İşlediyse True döner.
+    Hem çalışma başındaki kontrolde hem onay beklerken gelen mesajlarda kullanılır.
+    """
+    from sheets import set_bot_status, get_bot_status, get_setting, set_setting, save_log
+
+    text = text.strip().lower()
+
+    if text == "/pause":
+        set_bot_status("paused")
+        _send_message("⏸️ Bot duraklatıldı. Devam ettirmek için /resume yaz.")
+        print("⏸️ Bot pause edildi.")
+        save_log("⏸️ pause", notes="Telegram'dan /pause komutu alındı.")
+        return True
+
+    if text == "/resume":
+        set_bot_status("active")
+        _send_message("▶️ Bot yeniden aktif!")
+        print("▶️ Bot resume edildi.")
+        save_log("▶️ resume", notes="Telegram'dan /resume komutu alındı.")
+        return True
+
+    if text == "/status":
+        status = get_bot_status()
+        reels = get_setting("reels_status", "pause")
+        _send_message(
+            f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}\n"
+            f"Reels modu: {reels}"
+        )
+        return True
+
+    if text in ("/reels", "reels"):
+        reels_status = get_setting("reels_status", "pause").lower()
+        if reels_status.startswith("manu"):
+            set_setting("reels_request", "pending")
+            _send_message("🎬 Reel talebi alındı — bir sonraki çalışmada günün en önemli haberinden reel üretilecek.")
+            print("🎬 Manuel reel talebi kaydedildi.")
+            save_log("🎬 reel talebi", notes="Telegram'dan reels komutu alındı.")
+        elif reels_status == "otomatik":
+            _send_message("ℹ️ Reels otomatik modda — her gün en önemli haberden zaten reel üretiliyor.")
+        else:
+            _send_message("⏸️ Reels şu an pause modunda. Ayarlar sayfasında reels_status'u 'manuel' veya 'otomatik' yap.")
+        return True
+
+    return False
+
+
 def check_commands():
-    """
-    Telegram'dan bekleyen /pause veya /resume komutlarını kontrol eder.
-    Sheet'teki bot_status'u günceller.
-    """
+    """Telegram'dan bekleyen komutları okur ve işler."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return
 
     try:
-        from sheets import set_bot_status
         resp = requests.get(f"{BASE_URL}/getUpdates", params={"allowed_updates": ["message"]}, timeout=10)
         updates = resp.json().get("result", [])
 
@@ -34,24 +78,9 @@ def check_commands():
         for update in updates:
             last_offset = update["update_id"] + 1
             msg = update.get("message", {})
-            text = msg.get("text", "").strip().lower()
-
-            if text == "/pause":
-                set_bot_status("paused")
-                _send_message("⏸️ Bot duraklatıldı. Devam ettirmek için /resume yaz.")
-                print("⏸️ Bot pause edildi.")
-                from sheets import save_log
-                save_log("⏸️ pause", notes="Telegram'dan /pause komutu alındı.")
-            elif text == "/resume":
-                set_bot_status("active")
-                _send_message("▶️ Bot yeniden aktif!")
-                print("▶️ Bot resume edildi.")
-                from sheets import save_log
-                save_log("▶️ resume", notes="Telegram'dan /resume komutu alındı.")
-            elif text == "/status":
-                from sheets import get_bot_status
-                status = get_bot_status()
-                _send_message(f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}")
+            text = msg.get("text", "")
+            if text:
+                _handle_command(text)
 
         # Mesajları okundu olarak işaretle — bir sonraki çalışmada tekrar işlenmez
         if last_offset:
@@ -147,6 +176,56 @@ def notify_error(text: str):
         pass
 
 
+def send_reel_for_approval(video_path: Path, caption: str, topic: dict) -> tuple[bool, dict]:
+    """Reel videosunu onay için Telegram'a gönderir."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️  Telegram ayarları eksik, otomatik onaylanıyor.")
+        return True, {}
+
+    info_text = (
+        f"🎬 REEL | Puan: {topic.get('score', '?')}/10\n\n"
+        f"📰 {topic.get('konu', '')}\n"
+        f"📌 Kaynak: {topic.get('source_name', '')}\n\n"
+        f"Caption:\n{caption[:400]}"
+    )
+    _send_message(info_text)
+
+    message_id = _send_video_with_buttons(video_path)
+    if not message_id:
+        print("⚠️  Telegram videosu gönderilemedi, otomatik onaylanıyor.")
+        return True, {}
+
+    print(f"📱 Reel Telegram'a gönderildi. Onay bekleniyor (max 1 saat)...")
+    return _wait_for_callback(message_id, timeout=3600)
+
+
+def _send_video_with_buttons(video_path: Path) -> int | None:
+    """Videoyu inline butonlarla gönderir, message_id döner."""
+    import json
+    keyboard = json.dumps({
+        "inline_keyboard": [[
+            {"text": "✅ Onayla",     "callback_data": "approve"},
+            {"text": "✏️ Revize Et", "callback_data": "revise"},
+            {"text": "❌ Atla",       "callback_data": "skip"}
+        ]]
+    })
+    with open(video_path, "rb") as f:
+        response = requests.post(
+            f"{BASE_URL}/sendVideo",
+            data={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "reply_markup": keyboard
+            },
+            files={"video": f},
+            timeout=120
+        )
+
+    if response.ok:
+        return response.json()["result"]["message_id"]
+    print(f"⚠️  Telegram video gönderilemedi: {response.text}")
+    return None
+
+
 def _send_message(text: str):
     requests.post(f"{BASE_URL}/sendMessage", json={
         "chat_id": TELEGRAM_CHAT_ID,
@@ -230,6 +309,10 @@ def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict
             # Callback (buton)
             cb = update.get("callback_query")
             if not cb:
+                # Onay beklerken yazılan komutlar kaybolmasın (/pause, reels vb.)
+                text = update.get("message", {}).get("text", "")
+                if text:
+                    _handle_command(text)
                 continue
 
             requests.post(f"{BASE_URL}/answerCallbackQuery", json={"callback_query_id": cb["id"]})

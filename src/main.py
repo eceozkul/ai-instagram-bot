@@ -6,18 +6,26 @@ Tüm modülleri sırayla çalıştırır.
 import sys
 import json
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from research import fetch_rss_feeds, score_articles, enrich_topic, enrich_carousel
 import token_tracker
 from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
-from meta_post import post_to_instagram, post_carousel_to_instagram, get_permalink, check_token_age
-from sheets import load_history, save_to_history, save_log, get_bot_status
+from reels import generate_reel_video
+from meta_post import (
+    post_to_instagram,
+    post_carousel_to_instagram,
+    post_reel_to_instagram,
+    get_permalink,
+    check_token_age,
+)
+from sheets import load_history, save_to_history, save_log, get_bot_status, get_setting, set_setting
 from telegram_approval import (
     send_for_approval,
     send_carousel_for_approval,
+    send_reel_for_approval,
     check_commands,
     notify,
     notify_error,
@@ -127,6 +135,75 @@ def publish_carousel(medium: list[dict]):
     })
 
 
+def publish_reel(article: dict):
+    """En önemli haberden Reel üretir, onaya sunar, yayınlar."""
+    print(f"\n🎬 Reel hazırlanıyor (puan: {article['score']})...")
+    topic = enrich_topic(article, [])
+
+    print("\n✍️  Reel caption yazılıyor...")
+    content = generate_caption(topic)
+
+    video_path = generate_reel_video(topic)
+
+    print("\n📱 Telegram onayı bekleniyor...")
+    while True:
+        approved, revize = send_reel_for_approval(video_path, content["caption"], topic)
+        if approved:
+            break
+        if not revize:
+            print("❌ Reel atlandı.")
+            save_log("⏭️ atlandı", articles=[article], topic=topic, post_type="reel",
+                     telegram="❌ atlandı", tokens=token_tracker.summary())
+            set_setting("reels_request", "")
+            return
+        print("✏️ Reel revize ediliyor...")
+        if "caption" in revize:
+            topic["revize_notu"] = revize["caption"]
+            content = generate_caption(topic)
+        if "image" in revize:
+            video_path = generate_reel_video(topic, revize["image"])
+
+    print("\n📤 Reel atılıyor...")
+    post_id = post_reel_to_instagram(video_path, content["caption"])
+    permalink = get_permalink(post_id)
+    notify(f"🎉 Reel Instagram'da yayınlandı!\n{permalink}")
+    save_to_history(topic, post_id, content["caption"], post_type="reel", articles=[article])
+    save_log("✅ post edildi", articles=[article], topic=topic, post_type="reel",
+             telegram="✅ onaylandı", tokens=token_tracker.summary())
+
+    today = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
+    set_setting("last_reel_date", today)
+    set_setting("reels_request", "")
+    log_run("success", {"type": "reel", "topic": topic.get("konu"), "post_id": post_id})
+
+
+def handle_reels(scored: list[dict]):
+    """reels_status ayarına göre reel üretilip üretilmeyeceğine karar verir."""
+    status = get_setting("reels_status", "").lower()
+    if not status:
+        set_setting("reels_status", "pause")  # satır Ayarlar'da görünsün, kullanıcı değiştirebilsin
+        return
+    if status.startswith("pau") or not scored:
+        return
+
+    top = max(scored, key=lambda a: a["score"])
+
+    if status == "otomatik":
+        today = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
+        if get_setting("last_reel_date") == today:
+            return  # bugün zaten reel atıldı
+        if top["score"] < 8:
+            print("\n🎬 Reel: bugün için yeterli puanlı haber yok (min 8).")
+            return
+    elif status.startswith("manu"):
+        if get_setting("reels_request") != "pending":
+            return
+    else:
+        return
+
+    publish_reel(top)
+
+
 def run():
     print("=" * 50)
     print(f"🤖 AI Instagram Bot başlatıldı — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -169,19 +246,20 @@ def run():
         print(f"  🟡 7-8 puan (carousel): {len(medium)} haber")
         print(f"  ⚪ 7 altı (atlandı): {len(low)} haber")
 
+        # 3. Yayınlar — tek postun atlanması carousel'i etkilemez
         if not high and len(medium) < 2:
-            print("\n⏭️  Yeterli önemde haber yok, atlanıyor.")
+            print("\n⏭️  Yeterli önemde haber yok, post atlanıyor.")
             log_run("skipped", {"reason": "Hiçbir haber yayın eşiğini geçemedi."})
             save_log("⏭️ düşük puan", articles=articles, notes="Hiçbir haber yayın eşiğini geçemedi.",
                      post_type="-", telegram="-", tokens=token_tracker.summary())
-            return
+        else:
+            if high:
+                publish_single(high[0], articles)
+            if len(medium) >= 2:
+                publish_carousel(medium)
 
-        # 3. Yayınlar — tek postun atlanması carousel'i etkilemez
-        if high:
-            publish_single(high[0], articles)
-
-        if len(medium) >= 2:
-            publish_carousel(medium)
+        # 4. Reels — post akışından bağımsız değerlendirilir
+        handle_reels(scored)
 
         print("\n✅ Tamamlandı!")
 

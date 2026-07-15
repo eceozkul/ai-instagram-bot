@@ -9,14 +9,22 @@ OUTPUT_PRICE_PER_M = 0.60   # $0.60 / 1M output token
 
 _input_tokens  = 0
 _output_tokens = 0
+_extra_cost    = 0.0  # token dışı maliyetler (örn. Veo video, saniye başı ücret)
 _api_errors    = []
 
 
 def reset():
-    global _input_tokens, _output_tokens, _api_errors
+    global _input_tokens, _output_tokens, _extra_cost, _api_errors
     _input_tokens  = 0
     _output_tokens = 0
+    _extra_cost    = 0.0
     _api_errors    = []
+
+
+def add_cost(usd: float):
+    """Token bazlı olmayan maliyet ekler (örn. video üretimi)."""
+    global _extra_cost
+    _extra_cost += usd
 
 
 def track(response):
@@ -39,7 +47,8 @@ def summary() -> dict:
     """Toplam kullanım özetini döner."""
     cost = (
         (_input_tokens  / 1_000_000) * INPUT_PRICE_PER_M +
-        (_output_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
+        (_output_tokens / 1_000_000) * OUTPUT_PRICE_PER_M +
+        _extra_cost
     )
     return {
         "input_tokens":  _input_tokens,

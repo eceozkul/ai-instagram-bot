@@ -68,7 +68,8 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
         for attempt in range(20):
             try:
                 r = requests.head(url, timeout=10, allow_redirects=True)
-                if r.status_code == 200 and "image" in r.headers.get("Content-Type", ""):
+                ctype = r.headers.get("Content-Type", "")
+                if r.status_code == 200 and any(t in ctype for t in ("image", "video", "octet-stream")):
                     print(f"  ✓ URL hazır: {url}")
                     break
             except Exception:
@@ -86,10 +87,11 @@ def _clean_old_images(days: int = 3):
 
     cutoff = time.time() - (days * 86400)
     deleted = []
-    for path in OUTPUT_DIR.glob("*.png"):
-        if path.stat().st_mtime < cutoff:
-            path.unlink()
-            deleted.append(str(path))
+    for pattern in ("*.png", "*.mp4"):
+        for path in OUTPUT_DIR.glob(pattern):
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+                deleted.append(str(path))
 
     if deleted:
         subprocess.run(["git", "config", "user.email", "bot@github.actions"], check=True)
@@ -196,6 +198,50 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
 
     post_id = data["id"]
     print(f"✓ Carousel Instagram'da yayınlandı! Post ID: {post_id}")
+
+    _clean_old_images()
+    return post_id
+
+
+def post_reel_to_instagram(video_path: Path, caption: str) -> str:
+    """Meta Graph API ile Reels yayınlar."""
+    print("\n📤 Meta Graph API üzerinden Reel gönderiliyor...")
+
+    if not META_ACCESS_TOKEN or not IG_BUSINESS_ID:
+        raise ValueError("META_ACCESS_TOKEN veya IG_BUSINESS_ID eksik.")
+
+    # 1. Videoyu commit et, URL al
+    urls = _commit_and_push([video_path], f"Reel video: {video_path.name}")
+    video_url = urls[0]
+    print(f"  Video URL: {video_url}")
+
+    # 2. REELS container oluştur
+    r = _request("post", f"{GRAPH_URL}/me/media", data={
+        "media_type":   "REELS",
+        "video_url":    video_url,
+        "caption":      caption,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Reel container hatası: {data}")
+    creation_id = data["id"]
+    print(f"  Container ID: {creation_id}")
+
+    # 3. Video işleme fotoğraftan uzun sürer — geniş timeout
+    _wait_for_container(creation_id, timeout=300)
+
+    # 4. Publish
+    r = _request("post", f"{GRAPH_URL}/me/media_publish", data={
+        "creation_id":  creation_id,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Reel publish hatası: {data}")
+
+    post_id = data["id"]
+    print(f"✓ Reel Instagram'da yayınlandı! Post ID: {post_id}")
 
     _clean_old_images()
     return post_id

@@ -23,6 +23,11 @@ def _get_client():
     return _client
 
 
+def get_client():
+    """Diğer modüllerin (örn. video üretimi) kullanması için istemciyi döner."""
+    return _get_client()
+
+
 def generate(prompt: str, config=None, model: str = None):
     """Ham Gemini yanıtı döner. Geçici hatalarda tekrar dener."""
     model = model or GEMINI_TEXT_MODEL
