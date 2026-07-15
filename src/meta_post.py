@@ -36,8 +36,19 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
         url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{rel}"
         urls.append(url)
 
-    # Meta'nın URL'yi görmesi için birkaç saniye bekle (CDN cache)
-    time.sleep(15)
+    # URL'lerin gerçekten erişilebilir olmasını bekle
+    for url in urls:
+        for attempt in range(20):
+            try:
+                r = requests.head(url, timeout=10, allow_redirects=True)
+                if r.status_code == 200 and "image" in r.headers.get("Content-Type", ""):
+                    print(f"  ✓ URL hazır: {url}")
+                    break
+            except Exception:
+                pass
+            time.sleep(5)
+        else:
+            print(f"  ⚠️  URL erişilemez kaldı: {url}")
     return urls
 
 
