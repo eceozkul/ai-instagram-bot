@@ -201,6 +201,18 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
     return post_id
 
 
+def get_permalink(post_id: str) -> str:
+    """Yayınlanan postun Instagram linkini döner (alınamazsa boş)."""
+    try:
+        r = _request("get", f"{GRAPH_URL}/{post_id}", params={
+            "fields":       "permalink",
+            "access_token": META_ACCESS_TOKEN,
+        })
+        return r.json().get("permalink", "")
+    except Exception:
+        return ""
+
+
 def _wait_for_container(creation_id: str, timeout: int = 60):
     """Container'ın FINISHED durumuna gelmesini bekler."""
     for _ in range(timeout // 3):

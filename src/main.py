@@ -13,12 +13,13 @@ from research import fetch_rss_feeds, score_articles, enrich_topic, enrich_carou
 import token_tracker
 from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
-from meta_post import post_to_instagram, post_carousel_to_instagram
+from meta_post import post_to_instagram, post_carousel_to_instagram, get_permalink
 from sheets import load_history, save_to_history, save_log, get_bot_status
 from telegram_approval import (
     send_for_approval,
     send_carousel_for_approval,
     check_commands,
+    notify,
     notify_error,
 )
 
@@ -70,6 +71,8 @@ def publish_single(article: dict, articles: list[dict]):
 
     print("\n📤 Post atılıyor...")
     post_id = post_to_instagram(image_path, content["caption"])
+    permalink = get_permalink(post_id)
+    notify(f"🎉 Post Instagram'da yayınlandı!\n{permalink}")
     save_to_history(topic, post_id, content["caption"], post_type="tek post", articles=[article])
     save_log("✅ post edildi", articles=articles, topic=topic, post_type="tek post",
              telegram="✅ onaylandı", tokens=token_tracker.summary())
@@ -112,6 +115,8 @@ def publish_carousel(medium: list[dict]):
 
     print("\n📤 Carousel post atılıyor...")
     post_id = post_carousel_to_instagram(image_paths, content["caption"])
+    permalink = get_permalink(post_id)
+    notify(f"🎉 Carousel Instagram'da yayınlandı!\n{permalink}")
     save_to_history(carousel_topic, post_id, content["caption"], post_type="carousel", articles=medium)
     save_log("✅ post edildi", articles=medium, topic=carousel_topic, post_type="carousel",
              telegram="✅ onaylandı", tokens=token_tracker.summary())

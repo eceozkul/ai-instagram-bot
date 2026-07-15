@@ -121,6 +121,19 @@ def send_carousel_for_approval(image_paths: list[Path], caption: str, slides: li
     return _wait_for_callback(message_id, timeout=3600)
 
 
+def notify(text: str):
+    """Bilgi mesajı gönderir (onay istemez). Asla exception fırlatmaz."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    try:
+        requests.post(f"{BASE_URL}/sendMessage", json={
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": text[:4000],
+        }, timeout=10)
+    except Exception:
+        pass
+
+
 def notify_error(text: str):
     """Hata durumunda kullanıcıya Telegram'dan haber verir. Asla exception fırlatmaz."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -178,9 +191,20 @@ def _send_photo_with_buttons(image_path: Path) -> int | None:
     return None
 
 
+def _confirm_offset(offset):
+    """İşlenen update'leri Telegram tarafında okundu olarak işaretler."""
+    if offset:
+        try:
+            requests.get(f"{BASE_URL}/getUpdates", params={"offset": offset, "timeout": 0}, timeout=10)
+        except Exception:
+            pass
+
+
 def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict]:
     """
     Telegram callback'i polling ile bekler.
+    Sadece bu onaya ait mesajın (message_id) butonları kabul edilir —
+    önceki onaylardan kalan bayat callback'ler yok sayılır.
     Döner: (onaylandı_mı, revize_talimatları)
     """
     offset = None
@@ -205,31 +229,42 @@ def _wait_for_callback(message_id: int, timeout: int = 1800) -> tuple[bool, dict
 
             # Callback (buton)
             cb = update.get("callback_query")
-            if cb:
-                requests.post(f"{BASE_URL}/answerCallbackQuery", json={"callback_query_id": cb["id"]})
-                data = cb.get("data")
+            if not cb:
+                continue
 
-                if data == "approve":
-                    _send_message("✅ Onaylandı! Post atılıyor...")
-                    print("✅ Telegram onayı alındı.")
-                    return True, {}
+            requests.post(f"{BASE_URL}/answerCallbackQuery", json={"callback_query_id": cb["id"]})
 
-                elif data == "skip":
-                    _send_message("❌ Atlandı.")
-                    print("❌ Telegram'dan atla komutu geldi.")
-                    return True, {}
+            # Başka bir onay mesajına ait (bayat) callback — yok say
+            cb_message_id = cb.get("message", {}).get("message_id")
+            if cb_message_id != message_id:
+                print(f"  ⏭️  Bayat callback yok sayıldı (mesaj {cb_message_id}, beklenen {message_id}).")
+                continue
 
-                elif data == "revise":
-                    _send_message(
-                        "✏️ Neyi revize etmek istiyorsun? Yazarak belirt:\n\n"
-                        "Sadece caption için: <b>caption: isteğin</b>\n"
-                        "Sadece görsel için: <b>görsel: isteğin</b>\n"
-                        "İkisi için: <b>caption: ... görsel: ...</b>"
-                    )
-                    print("✏️ Revize talebi alındı, kullanıcı talimat yazıyor...")
-                    # Kullanıcının mesajını bekle
-                    revize = _wait_for_revise_message(offset, deadline)
-                    return False, revize
+            data = cb.get("data")
+
+            if data == "approve":
+                _confirm_offset(offset)
+                _send_message("✅ Onaylandı! Gönderiliyor...")
+                print("✅ Telegram onayı alındı.")
+                return True, {}
+
+            elif data == "skip":
+                _confirm_offset(offset)
+                _send_message("❌ Atlandı.")
+                print("❌ Telegram'dan atla komutu geldi.")
+                return False, {}
+
+            elif data == "revise":
+                _send_message(
+                    "✏️ Neyi revize etmek istiyorsun? Yazarak belirt:\n\n"
+                    "Sadece caption için: <b>caption: isteğin</b>\n"
+                    "Sadece görsel için: <b>görsel: isteğin</b>\n"
+                    "İkisi için: <b>caption: ... görsel: ...</b>"
+                )
+                print("✏️ Revize talebi alındı, kullanıcı talimat yazıyor...")
+                # Kullanıcının mesajını bekle
+                revize = _wait_for_revise_message(offset, deadline)
+                return False, revize
 
     _send_message("⏰ 1 saat içinde yanıt gelmedi, otomatik onaylanıyor.")
     print("⏰ Telegram timeout — otomatik onaylandı.")
