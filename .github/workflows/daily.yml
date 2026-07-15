@@ -35,11 +35,3 @@ jobs:
         run: |
           cd src
           python main.py
-
-      - name: Logları kaydet
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: run-logs-${{ github.run_number }}
-          path: src/logs/
-          retention-days: 30
