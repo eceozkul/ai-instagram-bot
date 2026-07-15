@@ -7,7 +7,7 @@ import os
 import time
 import subprocess
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
@@ -199,6 +199,45 @@ def post_carousel_to_instagram(image_paths: list[Path], caption: str) -> str:
 
     _clean_old_images()
     return post_id
+
+
+def check_token_age():
+    """
+    Token'ın yaşını takip eder; 55. günden itibaren Telegram'dan yenileme uyarısı gönderir.
+    Token'ın kendisi saklanmaz — sadece son 8 karakteri (parmak izi) ve tarihi Sheet'e yazılır.
+    """
+    if not META_ACCESS_TOKEN:
+        return
+    try:
+        from sheets import get_setting, set_setting
+        from telegram_approval import notify
+
+        today = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
+        fingerprint = META_ACCESS_TOKEN[-8:]
+
+        if get_setting("token_fingerprint") != fingerprint:
+            # Yeni token — sayacı sıfırla
+            set_setting("token_fingerprint", fingerprint)
+            set_setting("token_updated_at", today)
+            print("🔑 Yeni Meta token algılandı, yaş sayacı sıfırlandı.")
+            return
+
+        updated_at = get_setting("token_updated_at")
+        if not updated_at:
+            set_setting("token_updated_at", today)
+            return
+
+        age_days = (datetime.strptime(today, "%Y-%m-%d") - datetime.strptime(updated_at, "%Y-%m-%d")).days
+        if age_days >= 55 and get_setting("token_warned_date") != today:
+            set_setting("token_warned_date", today)
+            notify(
+                f"⚠️ Meta access token {age_days} günlük — ~60 günde süresi doluyor.\n\n"
+                f"Yenilemek için: developers.facebook.com → Instagram → API setup → "
+                f"Generate token → GitHub'da META_ACCESS_TOKEN secret'ını güncelle."
+            )
+            print(f"⚠️ Token yaş uyarısı gönderildi ({age_days} gün).")
+    except Exception as e:
+        print(f"⚠️  Token yaş kontrolü yapılamadı: {e}")
 
 
 def get_permalink(post_id: str) -> str:

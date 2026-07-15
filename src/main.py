@@ -13,7 +13,7 @@ from research import fetch_rss_feeds, score_articles, enrich_topic, enrich_carou
 import token_tracker
 from content import generate_caption, generate_carousel_caption
 from image import create_post_image, create_carousel_images
-from meta_post import post_to_instagram, post_carousel_to_instagram, get_permalink
+from meta_post import post_to_instagram, post_carousel_to_instagram, get_permalink, check_token_age
 from sheets import load_history, save_to_history, save_log, get_bot_status
 from telegram_approval import (
     send_for_approval,
@@ -137,6 +137,9 @@ def run():
     try:
         # Telegram komutlarını kontrol et (/pause, /resume, /status)
         check_commands()
+
+        # Meta token yaşını kontrol et (55. günden itibaren uyarır)
+        check_token_age()
 
         # Bot durumunu kontrol et
         status = get_bot_status()
