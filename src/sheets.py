@@ -48,8 +48,11 @@ def _get_settings_sheet():
         return sh.worksheet(SETTINGS_SHEET)
     except gspread.WorksheetNotFound:
         ws = sh.add_worksheet(title=SETTINGS_SHEET, rows=50, cols=3)
-        ws.append_row(["key", "value", "açıklama"])
-        ws.append_row(["bot_status", "active", "active veya paused"])
+        ws.append_rows([
+            ["key", "value", "açıklama"],
+            ["bot_status", "active", "active veya paused — pause tüm botu (reels dahil) durdurur"],
+            ["reels_status", "pause", "manuel / otomatik / pause — Telegram: 'reels manuel' vb. ile değiştirilebilir"],
+        ])
         print("✓ Ayarlar sayfası oluşturuldu.")
         return ws
 

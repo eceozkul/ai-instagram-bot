@@ -46,6 +46,15 @@ def _handle_command(text: str) -> bool:
         )
         return True
 
+    # Reels modunu değiştir: "reels manuel" / "reels otomatik" / "reels pause"
+    for mode in ("manuel", "otomatik", "pause"):
+        if text in (f"reels {mode}", f"/reels {mode}"):
+            set_setting("reels_status", mode)
+            _send_message(f"🎬 Reels modu güncellendi: {mode}")
+            print(f"🎬 Reels modu → {mode}")
+            save_log("🎬 reels modu", notes=f"Telegram'dan reels modu {mode} yapıldı.")
+            return True
+
     if text in ("/reels", "reels"):
         reels_status = get_setting("reels_status", "pause").lower()
         if reels_status.startswith("manu"):
@@ -56,7 +65,10 @@ def _handle_command(text: str) -> bool:
         elif reels_status == "otomatik":
             _send_message("ℹ️ Reels otomatik modda — her gün en önemli haberden zaten reel üretiliyor.")
         else:
-            _send_message("⏸️ Reels şu an pause modunda. Ayarlar sayfasında reels_status'u 'manuel' veya 'otomatik' yap.")
+            _send_message(
+                "⏸️ Reels şu an pause modunda.\n"
+                "Değiştirmek için yaz: <b>reels manuel</b> / <b>reels otomatik</b> / <b>reels pause</b>"
+            )
         return True
 
     return False
