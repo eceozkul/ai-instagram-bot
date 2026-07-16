@@ -3,3 +3,4 @@
 __pycache__/
 *.pyc
 src/logs/
+.DS_Store
