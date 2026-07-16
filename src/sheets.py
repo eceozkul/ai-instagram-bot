@@ -52,6 +52,7 @@ def _get_settings_sheet():
             ["key", "value", "açıklama"],
             ["bot_status", "active", "active veya paused — pause tüm botu (reels dahil) durdurur"],
             ["reels_status", "pause", "manuel / otomatik / pause — Telegram: 'reels manuel' vb. ile değiştirilebilir"],
+            ["story_status", "otomatik", "otomatik / pause — reel yayınlanınca story olarak da paylaşılır"],
         ])
         print("✓ Ayarlar sayfası oluşturuldu.")
         return ws

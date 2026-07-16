@@ -48,8 +48,12 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     for path in paths:
         subprocess.run(["git", "add", str(path)], check=True)
 
-    subprocess.run(["git", "commit", "-m", message], check=True)
-    subprocess.run(["git", "push"], check=True)
+    # Değişiklik varsa commit + push; dosya zaten repodaysa (örn. story için
+    # tekrar kullanılan video) bu adım sessizce atlanır
+    has_changes = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode != 0
+    if has_changes:
+        subprocess.run(["git", "commit", "-m", message], check=True)
+        subprocess.run(["git", "push"], check=True)
 
     # Commit sonrası raw URL'leri al — yol repo köküne göre olmalı
     repo_root = Path(subprocess.run(
@@ -244,6 +248,41 @@ def post_reel_to_instagram(video_path: Path, caption: str) -> str:
     print(f"✓ Reel Instagram'da yayınlandı! Post ID: {post_id}")
 
     _clean_old_images()
+    return post_id
+
+
+def post_story_to_instagram(video_path: Path) -> str:
+    """Videoyu Instagram story olarak paylaşır (story'lerde caption olmaz)."""
+    print("\n📖 Story olarak paylaşılıyor...")
+
+    if not META_ACCESS_TOKEN or not IG_BUSINESS_ID:
+        raise ValueError("META_ACCESS_TOKEN veya IG_BUSINESS_ID eksik.")
+
+    urls = _commit_and_push([video_path], f"Story video: {video_path.name}")
+    video_url = urls[0]
+
+    r = _request("post", f"{GRAPH_URL}/me/media", data={
+        "media_type":   "STORIES",
+        "video_url":    video_url,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Story container hatası: {data}")
+    creation_id = data["id"]
+
+    _wait_for_container(creation_id, timeout=300)
+
+    r = _request("post", f"{GRAPH_URL}/me/media_publish", data={
+        "creation_id":  creation_id,
+        "access_token": META_ACCESS_TOKEN,
+    })
+    data = r.json()
+    if "id" not in data:
+        raise ValueError(f"Story publish hatası: {data}")
+
+    post_id = data["id"]
+    print(f"✓ Story yayınlandı! ID: {post_id}")
     return post_id
 
 

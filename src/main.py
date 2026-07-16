@@ -18,6 +18,7 @@ from meta_post import (
     post_to_instagram,
     post_carousel_to_instagram,
     post_reel_to_instagram,
+    post_story_to_instagram,
     get_permalink,
     check_token_age,
 )
@@ -175,6 +176,17 @@ def publish_reel(article: dict):
     set_setting("last_reel_date", today)
     set_setting("reels_request", "")
     log_run("success", {"type": "reel", "topic": topic.get("konu"), "post_id": post_id})
+
+    # Reel'i story olarak da paylaş — başarısız olursa reel akışını etkilemez
+    if get_setting("story_status", "otomatik").lower().startswith("oto"):
+        try:
+            post_story_to_instagram(video_path)
+            notify("📖 Reel story olarak da paylaşıldı!")
+            save_log("✅ story", topic=topic, post_type="story", telegram="-",
+                     tokens=token_tracker.summary())
+        except Exception as e:
+            print(f"⚠️  Story paylaşılamadı: {e}")
+            notify_error(f"⚠️ Reel yayınlandı ama story paylaşılamadı:\n{e}")
 
 
 def handle_reels(scored: list[dict]):

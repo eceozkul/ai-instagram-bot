@@ -40,11 +40,22 @@ def _handle_command(text: str) -> bool:
     if text == "/status":
         status = get_bot_status()
         reels = get_setting("reels_status", "pause")
+        story = get_setting("story_status", "otomatik")
         _send_message(
             f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}\n"
-            f"Reels modu: {reels}"
+            f"Reels modu: {reels}\n"
+            f"Story modu: {story}"
         )
         return True
+
+    # Story modunu değiştir: "story otomatik" / "story pause"
+    for mode in ("otomatik", "pause"):
+        if text in (f"story {mode}", f"/story {mode}"):
+            set_setting("story_status", mode)
+            _send_message(f"📖 Story modu güncellendi: {mode}")
+            print(f"📖 Story modu → {mode}")
+            save_log("📖 story modu", notes=f"Telegram'dan story modu {mode} yapıldı.")
+            return True
 
     # Reels modunu değiştir: "reels manuel" / "reels otomatik" / "reels pause"
     for mode in ("manuel", "otomatik", "pause"):
