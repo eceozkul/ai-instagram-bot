@@ -230,10 +230,10 @@ def run():
         # Meta token yaşını kontrol et (55. günden itibaren uyarır)
         check_token_age()
 
-        # Bot durumunu kontrol et
-        status = get_bot_status()
-        if status == "paused":
-            print("\n⏸️  Bot duraklatılmış, atlanıyor.")
+        # Bot durumunu kontrol et — "pause", "paused", "durduruldu" vb. hepsi kabul edilir
+        status = get_bot_status().strip().lower()
+        if status.startswith("pau") or status.startswith("dur"):
+            print(f"\n⏸️  Bot duraklatılmış ({status}), atlanıyor.")
             return
 
         # 1. Haber Toplama
