@@ -40,6 +40,25 @@ def _request(method: str, url: str, **kwargs) -> requests.Response:
     raise last_err
 
 
+def _push_with_retry(attempts: int = 5):
+    """
+    git push dener; remote ilerlemişse (başka bir çalışma veya elle commit
+    aradan girmişse) fetch + rebase yapıp tekrar dener.
+    """
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(["git", "push"], capture_output=True, text=True)
+        if result.returncode == 0:
+            return
+        print(f"  ⚠️  git push başarısız (deneme {attempt}/{attempts}), rebase edip tekrar denenecek: {result.stderr.strip()[:200]}")
+        subprocess.run(["git", "fetch", "origin"], check=True)
+        rebase = subprocess.run(["git", "rebase", "origin/main"], capture_output=True, text=True)
+        if rebase.returncode != 0:
+            subprocess.run(["git", "rebase", "--abort"], check=False)
+            raise RuntimeError(f"git rebase başarısız, push iptal edildi: {rebase.stderr.strip()[:300]}")
+        time.sleep(2)
+    raise RuntimeError(f"git push {attempts} denemede de başarısız oldu.")
+
+
 def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     """Görselleri repoya commit eder, raw URL listesini döner."""
     subprocess.run(["git", "config", "user.email", "bot@github.actions"], check=True)
@@ -53,7 +72,7 @@ def _commit_and_push(paths: list[Path], message: str) -> list[str]:
     has_changes = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode != 0
     if has_changes:
         subprocess.run(["git", "commit", "-m", message], check=True)
-        subprocess.run(["git", "push"], check=True)
+        _push_with_retry()
 
     # Commit sonrası raw URL'leri al — yol repo köküne göre olmalı
     repo_root = Path(subprocess.run(
@@ -103,8 +122,11 @@ def _clean_old_images(days: int = 3):
         for f in deleted:
             subprocess.run(["git", "rm", f], check=False)
         subprocess.run(["git", "commit", "-m", f"Clean up {len(deleted)} old images"], check=False)
-        subprocess.run(["git", "push"], check=False)
-        print(f"🗑️  {len(deleted)} eski görsel silindi.")
+        try:
+            _push_with_retry()
+            print(f"🗑️  {len(deleted)} eski görsel silindi.")
+        except Exception as e:
+            print(f"⚠️  Eski görseller silinemedi (push başarısız): {e}")
 
 
 def post_to_instagram(image_path: Path, caption: str) -> str:
