@@ -19,11 +19,13 @@ GENERATION_TIMEOUT = 600      # video üretimi bekleme üst sınırı (sn)
 
 
 def build_video_prompt(topic: dict, revize_notu: str = "") -> str:
-    subject = topic.get("gorsel_prompt", "abstract AI neural network visualization")
+    """General AI News marka dili: temiz, aydınlık, editoryal fotoğraf/video estetiği."""
+    subject = topic.get("gorsel_prompt", "abstract AI technology visualization")
     style = (
-        "Vertical 9:16 cinematic news reel background. Slow smooth camera movement, "
-        "futuristic dark atmosphere, deep blue and black tones, neon cyan and purple "
-        "accent lights, subtle particle effects, NO text, NO watermark"
+        "Vertical 9:16 professional editorial news reel. Slow smooth camera movement, "
+        "clean bright natural daylight, realistic stock-footage quality, NOT abstract digital art, "
+        "predominantly white and light gray tones with one clear lime green (#B0E65A) accent "
+        "light or object in frame, NO dark navy background, NO text, NO watermark"
     )
     prompt = f"{subject}. {style}"
     if revize_notu:
