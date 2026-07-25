@@ -31,6 +31,33 @@ def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.load_default()
 
 
+# logo.png tam lockup'tır (ikon + "General AI News" yazısı yan yana).
+# Küçük boyutlarda yazı okunmaz hale geldiği için sadece ikon kısmını kırpıp kullanıyoruz.
+_LOGO_ICON_CROP_RATIO = (0.13, 0.08, 0.565, 0.75)  # (left, top, right, bottom)
+_logo_icon_cache = None
+
+
+def _load_logo_icon() -> Image.Image | None:
+    """logo.png'den sadece dairesel ikonu kırpıp döner (yoksa None)."""
+    global _logo_icon_cache
+    if _logo_icon_cache is not None:
+        return _logo_icon_cache
+
+    logo_path = Path(__file__).parent / "logo.png"
+    if not logo_path.exists():
+        return None
+
+    try:
+        logo = Image.open(logo_path).convert("RGBA")
+        w, h = logo.size
+        l, t, r, b = _LOGO_ICON_CROP_RATIO
+        _logo_icon_cache = logo.crop((int(w * l), int(h * t), int(w * r), int(h * b)))
+        return _logo_icon_cache
+    except Exception as e:
+        print(f"⚠️  Logo yüklenemedi: {e}")
+        return None
+
+
 def build_image_prompt(topic: dict) -> str:
     """General AI News kurumsal fotoğraf stili — sadece sağ 1/3'te kullanılacak sahne."""
     subject = topic.get("gorsel_prompt", "abstract AI technology visualization")
@@ -143,17 +170,12 @@ def _compose_branded_image(photo: Image.Image, title: str, source: str, badge: s
     # Alt bilgi — kaynak
     draw.text((margin, H - 90), f"— {source}", font=font_sub, fill=GRAY_TEXT)
 
-    # Logo — sol alt köşe
-    logo_path = Path(__file__).parent / "logo.png"
-    if logo_path.exists():
-        try:
-            logo = Image.open(logo_path).convert("RGBA")
-            logo_h = 60
-            ratio = logo_h / logo.height
-            logo = logo.resize((int(logo.width * ratio), logo_h), Image.LANCZOS)
-            canvas.paste(logo, (margin, H - 160), logo)
-        except Exception as e:
-            print(f"⚠️  Logo eklenemedi: {e}")
+    # Logo ikonu — kaynak metninin hemen üstünde, sol alt köşe
+    icon = _load_logo_icon()
+    if icon is not None:
+        icon_size = 64
+        icon_resized = icon.resize((icon_size, icon_size), Image.LANCZOS)
+        canvas.paste(icon_resized, (margin, H - 170), icon_resized)
 
     return canvas
 
