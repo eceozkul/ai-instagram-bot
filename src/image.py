@@ -98,13 +98,24 @@ def generate_image(topic: dict) -> Path:
 
 
 def crop_to_square(image: Image.Image) -> Image.Image:
-    """1080x1080 kare yap."""
+    """1080x1080 kare yap (Gemini kaynak görselini normalize etmek için)."""
     w, h = image.size
     m = min(w, h)
     left, top = (w - m) // 2, (h - m) // 2
     return image.crop((left, top, left + m, top + m)).resize(
         (IMAGE_SIZE, IMAGE_SIZE), Image.LANCZOS
     )
+
+
+def _cover_resize(image: Image.Image, target_w: int, target_h: int) -> Image.Image:
+    """CSS 'object-fit: cover' gibi — oranı bozmadan hedef kutuyu doldurup taşanı kırpar."""
+    src_w, src_h = image.size
+    scale = max(target_w / src_w, target_h / src_h)
+    new_w, new_h = round(src_w * scale), round(src_h * scale)
+    resized = image.resize((new_w, new_h), Image.LANCZOS)
+    left = (new_w - target_w) // 2
+    top = (new_h - target_h) // 2
+    return resized.crop((left, top, left + target_w, top + target_h))
 
 
 def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: ImageDraw.ImageDraw) -> list[str]:
@@ -126,16 +137,19 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: Im
 
 def _compose_branded_image(photo: Image.Image, title: str, source: str, badge: str = "") -> Image.Image:
     """
-    Asimetrik marka kompozisyonu: sol 2/3 beyaz alan + metin, sağ 1/3 fotoğraf.
-    photo: Gemini'nin ürettiği kare görsel (sağ panele kırpılıp yerleştirilir).
+    Asimetrik marka kompozisyonu: sol ~62% beyaz alan + metin, sağ ~38% fotoğraf.
+    Kanvas 4:5 (1080x1350) — Instagram feed'in önerdiği standart dikey oran;
+    kare (1:1) postlar akışta bazı görünümlerde otomatik/asimetrik kırpılabiliyor,
+    4:5 ise tam boyutuyla, kırpılmadan gösteriliyor.
+    photo: Gemini'nin ürettiği kare görsel (sağ panele oranı bozulmadan kırpılıp yerleştirilir).
     """
-    W = H = IMAGE_SIZE
+    W, H = IMAGE_SIZE, int(IMAGE_SIZE * 5 / 4)
     canvas = Image.new("RGB", (W, H), WHITE)
     draw = ImageDraw.Draw(canvas)
 
-    # Sağ 1/3: fotoğraf paneli
-    panel_w = W // 3
-    photo_resized = photo.resize((panel_w, H), Image.LANCZOS)
+    # Sağ panel: fotoğraf (oranı bozmadan 'cover' ile doldurulur, gerip bozmaz)
+    panel_w = int(W * 0.38)
+    photo_resized = _cover_resize(photo, panel_w, H)
     canvas.paste(photo_resized, (W - panel_w, 0))
 
     # Panel ile beyaz alan arasında ince lime çizgi
