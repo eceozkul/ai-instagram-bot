@@ -135,6 +135,48 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: Im
     return lines
 
 
+# Başlık tipografisi — 62px ideal boyut, sığmazsa kademeli küçültülür.
+_TITLE_SIZE_MAX  = 62
+_TITLE_SIZE_MIN  = 42
+_TITLE_LINE_RATIO = 1.26   # satır yüksekliği / font boyutu (62 → 78)
+_TITLE_MAX_LINES  = 6      # estetik üst sınır; bunun üstünde font küçülür
+
+
+def _fit_title(
+    title: str,
+    max_width: int,
+    available_h: int,
+    draw: ImageDraw.ImageDraw,
+) -> tuple[ImageFont.FreeTypeFont, list[str], int]:
+    """
+    Başlığı ayrılan kutuya sığdırır: 62px'ten başlayıp sığana kadar fontu küçültür.
+    Önceden satır sayısı 4'te sabit kesiliyordu ve uzun başlıkların sonu sessizce
+    kaybolup cümle yarıda kalıyordu. En küçük fontta bile sığmazsa "…" ile kısaltır.
+    Döner: (font, satırlar, satır yüksekliği)
+    """
+    font = line_height = lines = None
+    for size in range(_TITLE_SIZE_MAX, _TITLE_SIZE_MIN - 1, -2):
+        font = _font("Montserrat-Bold.ttf", size)
+        line_height = round(size * _TITLE_LINE_RATIO)
+        lines = _wrap_text(title, font, max_width, draw)
+        # Küçültme kararı estetik sınıra göre verilir; asıl sınır kutunun yüksekliği.
+        if len(lines) <= max(1, min(_TITLE_MAX_LINES, available_h // line_height)):
+            return font, lines, line_height
+
+    # En küçük fonta gelindi: artık estetik sınırı bırak, kutuya sığdığı kadar göster
+    hard_max = max(1, available_h // line_height)
+    if len(lines) <= hard_max:
+        return font, lines, line_height
+
+    # Kutuya da sığmıyor: kes ve üç nokta koy
+    lines = lines[:hard_max]
+    last = lines[-1].rstrip(" ,;:") + "…"
+    while len(last) > 1 and draw.textlength(last, font=font) > max_width:
+        last = last[:-2].rstrip(" ,;:") + "…"
+    lines[-1] = last
+    return font, lines, line_height
+
+
 def _compose_branded_image(photo: Image.Image, title: str, source: str, badge: str = "") -> Image.Image:
     """
     Asimetrik marka kompozisyonu: sol ~62% beyaz alan + metin, sağ ~38% fotoğraf.
@@ -160,7 +202,6 @@ def _compose_branded_image(photo: Image.Image, title: str, source: str, badge: s
     margin = 70
     max_text_width = text_area_w - margin * 2
 
-    font_title = _font("Montserrat-Bold.ttf", 62)
     font_sub   = _font("Montserrat-Regular.ttf", 30)
     font_badge = _font("Montserrat-SemiBold.ttf", 24)
 
@@ -172,11 +213,15 @@ def _compose_branded_image(photo: Image.Image, title: str, source: str, badge: s
         draw.text((margin + 20, y + 10), badge, font=font_badge, fill=NAVY)
         y += 90
 
-    # Başlık — dikey ortalamaya yakın, lacivert
-    lines = _wrap_text(title, font_title, max_text_width, draw)[:4]
-    line_height = 78
+    # Başlık — dikey ortalamaya yakın, lacivert.
+    # Alt sınır: logo ikonunun üstü (H - 170) eksi nefes payı.
+    title_bottom_limit = H - 210
+    font_title, lines, line_height = _fit_title(
+        title, max_text_width, title_bottom_limit - y, draw
+    )
     title_h = len(lines) * line_height
     title_y = max(y, (H - title_h) // 2 - 40)
+    title_y = min(title_y, title_bottom_limit - title_h)
     for line in lines:
         draw.text((margin, title_y), line, font=font_title, fill=NAVY)
         title_y += line_height
