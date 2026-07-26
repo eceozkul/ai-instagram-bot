@@ -158,7 +158,12 @@ Alanlar:
 - konu: tek cümle başlık
 - neden_onemli: 2-3 cümle sade dille
 - ana_mesaj: çarpıcı açılış cümlesi, emoji ile
-- gorsel_prompt: İngilizce futuristik dark neon görsel tarifi (görselde metin olmasın)"""
+- gorsel_prompt: İngilizce görsel sahne tarifi — sadece sahneyi/nesneyi tarif et,
+  stil kodda ekleniyor, görselde metin olmasın
+- sablon: bu habere en uygun görsel şablon:
+  "A" = beyaz zeminli asimetrik düzen — kavramsal konular, analizler, yazılım/model haberleri
+  "B" = üstte fotoğraf altta lacivert panel — somut ürün, cihaz, robot, ekran odaklı haberler
+  "C" = tam ekran atmosferik fotoğraf — dramatik, sektörü sarsan, büyük etki yaratan haberler"""
 
     schema = {
         "type": "OBJECT",
@@ -167,8 +172,9 @@ Alanlar:
             "neden_onemli":  {"type": "STRING"},
             "ana_mesaj":     {"type": "STRING"},
             "gorsel_prompt": {"type": "STRING"},
+            "sablon":        {"type": "STRING", "enum": ["A", "B", "C"]},
         },
-        "required": ["konu", "neden_onemli", "ana_mesaj", "gorsel_prompt"],
+        "required": ["konu", "neden_onemli", "ana_mesaj", "gorsel_prompt", "sablon"],
     }
 
     result = gemini_client.generate_json(prompt, schema)
@@ -190,8 +196,9 @@ def enrich_carousel(articles: list[dict]) -> list[dict]:
             "baslik":        {"type": "STRING"},
             "aciklama":      {"type": "STRING"},
             "gorsel_prompt": {"type": "STRING"},
+            "sablon":        {"type": "STRING", "enum": ["A", "B", "C"]},
         },
-        "required": ["baslik", "aciklama", "gorsel_prompt"],
+        "required": ["baslik", "aciklama", "gorsel_prompt", "sablon"],
     }
 
     enriched = []
@@ -206,7 +213,12 @@ Kaynak: {article['source']}
 Alanlar:
 - baslik: kısa çarpıcı başlık (max 8 kelime)
 - aciklama: 2 cümle sade açıklama
-- gorsel_prompt: İngilizce futuristik dark neon görsel tarifi"""
+- gorsel_prompt: İngilizce görsel sahne tarifi — sadece sahneyi/nesneyi tarif et,
+  stil kodda ekleniyor, görselde metin olmasın
+- sablon: bu habere en uygun görsel şablon:
+  "A" = beyaz zeminli asimetrik düzen — kavramsal konular, analizler, yazılım/model haberleri
+  "B" = üstte fotoğraf altta lacivert panel — somut ürün, cihaz, robot, ekran odaklı haberler
+  "C" = tam ekran atmosferik fotoğraf — dramatik, sektörü sarsan, büyük etki yaratan haberler"""
 
         slide = gemini_client.generate_json(prompt, schema)
         slide["source"] = article["source"]

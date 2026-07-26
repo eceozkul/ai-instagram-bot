@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!-- Şablon B — Dikey bölünmüş: üst %55 fotoğraf, alt %45 lacivert panel.
+     Somut ürün, cihaz, robot, ekran görüntüsü odaklı haberler için. -->
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<style>
+{% include "_base.css" %}
+
+.canvas {
+  width: 1080px;
+  height: 1350px;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo {
+  height: 55%;
+  position: relative;
+}
+
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo .logo {
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  width: 72px;
+  height: 72px;
+}
+
+.panel {
+  height: 45%;
+  background: var(--navy);
+  padding: 56px 70px 60px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tag {
+  align-self: flex-start;
+  color: var(--lime);
+  border: 2px solid var(--lime);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: 4px;
+  padding: 10px 20px;
+  margin-bottom: 36px;
+}
+
+#titlebox {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+#title {
+  color: var(--white);
+  width: 100%;
+}
+
+.footer {
+  margin-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.footer .source {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.footer .slide {
+  color: var(--lime);
+  font-size: 30px;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="photo">
+    <img src="{{ image_data }}" alt="">
+    {% if logo_data %}<img class="logo" src="{{ logo_data }}" alt="">{% endif %}
+  </div>
+  <div class="panel">
+    <div class="tag">ÖNE ÇIKAN GELİŞME</div>
+    <div id="titlebox"><h1 id="title">{{ title }}</h1></div>
+    <div class="footer">
+      <div class="source">— {{ source }}</div>
+      {% if badge %}<div class="slide">{{ badge }}</div>{% endif %}
+    </div>
+  </div>
+</div>
+<script>
+{% include "_fit_title.js" %}
+</script>
+</body>
+</html>

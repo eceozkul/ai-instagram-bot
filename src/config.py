@@ -20,8 +20,6 @@ RSS_FEEDS = [
     {"name": "VentureBeat AI","url": "https://venturebeat.com/category/ai/feed/",                     "priority": 2},
 ]
 
-IMAGE_SIZE = 1080
-
 HASHTAGS = [
     "#yapayzekahaberleri", "#teknoloji", "#AI", "#YapayZeka",
     "#makineöğrenmesi", "#gelecek", "#inovasyon",

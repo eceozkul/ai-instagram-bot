@@ -1,0 +1,49 @@
+/* General AI News — ortak şablon stilleri (tüm şablonlar bu dosyayı gömer) */
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("{{ fonts_dir }}/Montserrat-Regular.ttf");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("{{ fonts_dir }}/Montserrat-SemiBold.ttf");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("{{ fonts_dir }}/Montserrat-Bold.ttf");
+  font-weight: 700;
+}
+
+:root {
+  /* Marka paleti — src/logo.png'den */
+  --navy: #0D1B4F;
+  --lime: #B0E65A;
+  --white: #FFFFFF;
+  --light-gray: #F5F6F8;
+  --gray-text: #6E768C;
+
+  /* Başlık tipografisi — hesap genelinde uyum için 54px standart, 42px taban */
+  --title-size: 54px;
+  --title-line: 1.26;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 1080px;
+  height: 1350px; /* 4:5 — kare kullanılmaz, Instagram akışta kareyi asimetrik kırpıyor */
+  overflow: hidden;
+  font-family: "Montserrat", sans-serif;
+}
+
+h1 {
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: var(--title-line);
+}
