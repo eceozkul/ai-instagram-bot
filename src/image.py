@@ -135,11 +135,15 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: Im
     return lines
 
 
-# Başlık tipografisi — 62px ideal boyut, sığmazsa kademeli küçültülür.
-_TITLE_SIZE_MAX  = 62
+# Başlık tipografisi — 54px standart boyut, sığmazsa kademeli 42px'e kadar küçülür.
+# Tavan bilerek 54'te tutuluyor: daha büyük punto kısa başlıklarda devreye girip
+# akışta postlar arası boyut farkı yaratıyordu, hesap genelinde uyum bozuluyordu.
+_TITLE_SIZE_MAX  = 54
 _TITLE_SIZE_MIN  = 42
-_TITLE_LINE_RATIO = 1.26   # satır yüksekliği / font boyutu (62 → 78)
-_TITLE_MAX_LINES  = 6      # estetik üst sınır; bunun üstünde font küçülür
+_TITLE_LINE_RATIO = 1.26   # satır yüksekliği / font boyutu (54 → 68)
+_TITLE_MAX_LINES  = 8      # estetik üst sınır; bunun üstünde font küçülür.
+                           # 8 seçildi çünkü tipik haber başlığı 54px'te en fazla
+                           # bu kadar sürüyor — böylece post ve carousel aynı puntoda kalıyor.
 
 
 def _fit_title(
