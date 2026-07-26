@@ -22,7 +22,17 @@ from meta_post import (
     get_permalink,
     check_token_age,
 )
-from sheets import load_history, save_to_history, save_log, get_bot_status, get_setting, set_setting
+from sheets import (
+    load_history,
+    save_to_history,
+    save_log,
+    get_bot_status,
+    get_setting,
+    set_setting,
+    is_paused,
+    is_auto,
+    is_manual,
+)
 from telegram_approval import (
     send_for_approval,
     send_carousel_for_approval,
@@ -178,7 +188,7 @@ def publish_reel(article: dict):
     log_run("success", {"type": "reel", "topic": topic.get("konu"), "post_id": post_id})
 
     # Reel'i story olarak da paylaş — başarısız olursa reel akışını etkilemez
-    if get_setting("story_status", "otomatik").lower().startswith("oto"):
+    if is_auto(get_setting("story_status", "otomatik")):
         try:
             post_story_to_instagram(video_path)
             notify("📖 Reel story olarak da paylaşıldı!")
@@ -191,26 +201,27 @@ def publish_reel(article: dict):
 
 def handle_reels(scored: list[dict]):
     """reels_status ayarına göre reel üretilip üretilmeyeceğine karar verir."""
-    status = get_setting("reels_status", "").lower()
-    if not status:
+    status = get_setting("reels_status", "")
+    if not status.strip():
         set_setting("reels_status", "pause")  # satır Ayarlar'da görünsün, kullanıcı değiştirebilsin
         return
-    if status.startswith("pau") or not scored:
+    if is_paused(status) or not scored:
         return
 
     top = max(scored, key=lambda a: a["score"])
 
-    if status == "otomatik":
+    if is_auto(status):
         today = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
         if get_setting("last_reel_date") == today:
             return  # bugün zaten reel atıldı
         if top["score"] < 8:
             print("\n🎬 Reel: bugün için yeterli puanlı haber yok (min 8).")
             return
-    elif status.startswith("manu"):
+    elif is_manual(status):
         if get_setting("reels_request") != "pending":
             return
     else:
+        print(f"⚠️  reels_status değeri anlaşılamadı: {status!r} — reel atlanıyor.")
         return
 
     publish_reel(top)
@@ -231,8 +242,8 @@ def run():
         check_token_age()
 
         # Bot durumunu kontrol et — "pause", "paused", "durduruldu" vb. hepsi kabul edilir
-        status = get_bot_status().strip().lower()
-        if status.startswith("pau") or status.startswith("dur"):
+        status = get_bot_status()
+        if is_paused(status):
             print(f"\n⏸️  Bot duraklatılmış ({status}), atlanıyor.")
             return
 

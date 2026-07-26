@@ -50,9 +50,9 @@ def _get_settings_sheet():
         ws = sh.add_worksheet(title=SETTINGS_SHEET, rows=50, cols=3)
         ws.append_rows([
             ["key", "value", "açıklama"],
-            ["bot_status", "active", "active veya paused — pause tüm botu (reels dahil) durdurur"],
-            ["reels_status", "pause", "manuel / otomatik / pause — Telegram: 'reels manuel' vb. ile değiştirilebilir"],
-            ["story_status", "otomatik", "otomatik / pause — reel yayınlanınca story olarak da paylaşılır"],
+            ["bot_status", "active", "active | pause (paused/durduruldu da olur) — pause tüm botu durdurur (post, reels, story)"],
+            ["reels_status", "pause", "manuel | otomatik | pause — Telegram: reels manuel / reels otomatik / reels pause"],
+            ["story_status", "otomatik", "otomatik | pause — reel yayınlanınca story de paylaşılır. Telegram: story otomatik / story pause"],
         ])
         print("✓ Ayarlar sayfası oluşturuldu.")
         return ws
@@ -92,6 +92,35 @@ def get_bot_status() -> str:
 
 def set_bot_status(status: str):
     set_setting("bot_status", status)
+
+
+# --- Durum değeri yorumlama ---------------------------------------------------
+# Ayarlar sayfası elle düzenlenebildiği için değerler "pause", "paused",
+# "Otomatik ", "otomatık" gibi varyasyonlarla gelebiliyor. Aşağıdaki yardımcılar
+# tek bir yerde normalize eder; modüller doğrudan string karşılaştırması yapmaz.
+
+def _normalize(value: str) -> str:
+    """Boşlukları kırpar, küçük harfe çevirir, Türkçe karakterleri sadeleştirir."""
+    trans = str.maketrans("ıİşŞğĞüÜöÖçÇ", "iisSgGuUoOcC")
+    return (value or "").strip().translate(trans).lower()
+
+
+def is_paused(value: str) -> bool:
+    """pause / paused / duraklat / durduruldu / kapali → True"""
+    v = _normalize(value)
+    return v.startswith("pau") or v.startswith("dur") or v.startswith("kapa")
+
+
+def is_auto(value: str) -> bool:
+    """otomatik / otomatık / auto / açık → True"""
+    v = _normalize(value)
+    return v.startswith("oto") or v.startswith("auto") or v.startswith("acik")
+
+
+def is_manual(value: str) -> bool:
+    """manuel / manual / elle → True"""
+    v = _normalize(value)
+    return v.startswith("manu") or v.startswith("elle")
 
 
 def load_history() -> list[dict]:

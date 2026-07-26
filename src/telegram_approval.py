@@ -19,7 +19,10 @@ def _handle_command(text: str) -> bool:
     Bilinen bir Telegram komutunu işler. İşlediyse True döner.
     Hem çalışma başındaki kontrolde hem onay beklerken gelen mesajlarda kullanılır.
     """
-    from sheets import set_bot_status, get_bot_status, get_setting, set_setting, save_log
+    from sheets import (
+        set_bot_status, get_bot_status, get_setting, set_setting, save_log,
+        is_paused, is_auto, is_manual,
+    )
 
     text = text.strip().lower()
 
@@ -42,7 +45,7 @@ def _handle_command(text: str) -> bool:
         reels = get_setting("reels_status", "pause")
         story = get_setting("story_status", "otomatik")
         _send_message(
-            f"Bot durumu: {'▶️ Aktif' if status == 'active' else '⏸️ Duraklatılmış'}\n"
+            f"Bot durumu: {'⏸️ Duraklatılmış' if is_paused(status) else '▶️ Aktif'}\n"
             f"Reels modu: {reels}\n"
             f"Story modu: {story}"
         )
@@ -67,13 +70,13 @@ def _handle_command(text: str) -> bool:
             return True
 
     if text in ("/reels", "reels"):
-        reels_status = get_setting("reels_status", "pause").lower()
-        if reels_status.startswith("manu"):
+        reels_status = get_setting("reels_status", "pause")
+        if is_manual(reels_status):
             set_setting("reels_request", "pending")
             _send_message("🎬 Reel talebi alındı — bir sonraki çalışmada günün en önemli haberinden reel üretilecek.")
             print("🎬 Manuel reel talebi kaydedildi.")
             save_log("🎬 reel talebi", notes="Telegram'dan reels komutu alındı.")
-        elif reels_status == "otomatik":
+        elif is_auto(reels_status):
             _send_message("ℹ️ Reels otomatik modda — her gün en önemli haberden zaten reel üretiliyor.")
         else:
             _send_message(
