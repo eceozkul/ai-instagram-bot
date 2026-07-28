@@ -67,6 +67,10 @@ def render_image(
     logo_data: str | None = None,
 ) -> Path:
     """Şablonu doldurur, Chromium'da açar, 1080x1350 PNG olarak kaydeder."""
+    # Çağıranlar göreli yol veriyor (output/post_final.png); file:// URI'si
+    # mutlak yol ister, aksi halde as_uri() ValueError atar.
+    out_path = Path(out_path).resolve()
+
     key = normalize_template(template)
     html = _env.get_template(TEMPLATES[key]).render(
         title=title,
